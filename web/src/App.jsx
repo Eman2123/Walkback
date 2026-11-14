@@ -82,6 +82,12 @@ export default function App() {
           API: {api}. The terrain shown is {run?.tile?.label ?? "loading"}. Speed, cutoff and roughness are assumptions.
         </p>
       </header>
+            {run?.demo && (
+        <p className="mb-3 rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">
+          Demo data (recorded). The backend is not connected, so sliders and habitat clicks do not change
+          this result. The terrain is synthetic and the numbers are placeholders.
+        </p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <section className="space-y-3">
