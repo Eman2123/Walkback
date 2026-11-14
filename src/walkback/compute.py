@@ -94,8 +94,8 @@ def compute_run(tile: Tile, params: dict) -> dict:
 
     slope_coarse = slope_deg(tile.coarse, cell)
     slope_fine = slope_deg(tile.fine, cell)
-    if slope_coarse[hab] >= cutoff:
-        raise ValueError("habitat is on an impassable cell")
+    if slope_coarse[hab] >= cutoff or slope_fine[hab] >= cutoff:
+        raise ValueError("habitat is impassable at coarse or fine resolution")
 
     det = travel_time(speed_field(slope_coarse, v_flat, cutoff), hab, cell) <= budget
     truth = travel_time(speed_field(slope_fine, v_flat, cutoff), hab, cell) <= budget
