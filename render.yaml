@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: walkback-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn walkback.api:app --host 0.0.0.0 --port $PORT --proxy-headers
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: PYTHONPATH
+        value: src
+      - key: WALKBACK_TILE_DIR
+        value: data/processed
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: AIMLAPI_API_KEY
+        sync: false
+      - key: AIML_MODEL
+        sync: false
