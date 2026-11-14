@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { explainRun, getHealth, postRun } from "./lib/api.js";
+import { explainRun, getHealth, getRun, postRun } from "./lib/api.js";
 import {
   AssumptionsPanel,
   ControlPanel,
@@ -20,6 +20,9 @@ const DEFAULTS = {
   roughness: 0.5,
 };
 
+// A share link looks like /?run=<run_id>
+const sharedId = new URLSearchParams(window.location.search).get("run");
+
 export default function App() {
   const [params, setParams] = useState(DEFAULTS);
   const [run, setRun] = useState(null);
@@ -29,14 +32,30 @@ export default function App() {
   const [layers, setLayers] = useState({ deterministic: true, calibrated: true, truth: true });
   const [explanation, setExplanation] = useState("");
   const [explaining, setExplaining] = useState(false);
+  const [copied, setCopied] = useState(false);
   const timer = useRef(null);
+  const touched = useRef(false);
 
   useEffect(() => {
     getHealth().then((j) => setApi(j.status)).catch(() => setApi("unreachable"));
   }, []);
 
+  // Open a shared run: load the stored result and show its inputs.
+  useEffect(() => {
+    if (!sharedId) return;
+    setBusy(true);
+    getRun(sharedId)
+      .then((r) => {
+        setRun(r);
+        if (r.params) setParams(r.params);
+      })
+      .catch((e) => setError(`Could not open the shared run: ${e.message}`))
+      .finally(() => setBusy(false));
+  }, []);
+
   // Debounced: a slider drag sends one request, not one per pixel.
   useEffect(() => {
+    if (sharedId && !touched.current) return; // keep the shared result until the user changes something
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       setBusy(true);
@@ -54,23 +73,49 @@ export default function App() {
   }, [params]);
 
   function setParam(key, value) {
+    touched.current = true;
     setParams((p) => ({ ...p, [key]: value }));
   }
 
   function placeHabitat(row, col) {
+    touched.current = true;
     setParams((p) => ({ ...p, habitat_row: row, habitat_col: col }));
   }
 
-  async function handleExplain() {
+    async function handleExplain() {
     if (!run) return;
+    // The demo recording is not a stored run, so the backend has nothing to explain.
+    if (run.demo) {
+      setExplanation(
+        "The explainer is not available for the demo recording. It needs the backend and a stored run."
+      );
+      return;
+    }
     setExplaining(true);
     try {
       const { text } = await explainRun(run.run_id);
       setExplanation(text);
     } catch (e) {
-      setExplanation(`Explanation unavailable: ${e.message}`);
+      setExplanation(
+        `The explanation is not available right now (${e.message}). The numbers above are still correct.`
+      );
     } finally {
       setExplaining(false);
+    }
+  }
+  
+
+  // The demo recording is not a stored run, so it has no share link.
+  const canShare = run && !run.demo && run.run_id;
+
+  async function copyLink() {
+    const url = `${window.location.origin}${window.location.pathname}?run=${encodeURIComponent(run.run_id)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("Copy this link", url);
     }
   }
 
@@ -82,7 +127,8 @@ export default function App() {
           API: {api}. The terrain shown is {run?.tile?.label ?? "loading"}. Speed, cutoff and roughness are assumptions.
         </p>
       </header>
-            {run?.demo && (
+
+      {run?.demo && (
         <p className="mb-3 rounded border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900">
           Demo data (recorded). The backend is not connected, so sliders and habitat clicks do not change
           this result. The terrain is synthetic and the numbers are placeholders.
@@ -91,7 +137,7 @@ export default function App() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <section className="space-y-3">
-          <div className="flex flex-wrap gap-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
             {Object.keys(layers).map((k) => (
               <label key={k} className="flex items-center gap-1">
                 <input
@@ -102,9 +148,16 @@ export default function App() {
                 {k}
               </label>
             ))}
+            {canShare && (
+              <button
+                type="button"
+                onClick={copyLink}
+                className="ml-auto rounded bg-slate-800 px-3 py-1 text-xs text-white"
+              >
+                {copied ? "Link copied" : "Copy share link"}
+              </button>
+            )}
           </div>
-
-
 
           <div className="flex flex-wrap gap-4 text-xs text-slate-600">
             <span className="flex items-center gap-1">
@@ -125,9 +178,7 @@ export default function App() {
             </span>
           </div>
 
-
-
-                     <div className="relative mx-auto w-full max-w-[720px]">
+          <div className="relative mx-auto w-full max-w-[720px]">
             <MapView run={run} habitat={params} layers={layers} onHabitatClick={placeHabitat} />
             {busy && (
               <div
@@ -138,8 +189,8 @@ export default function App() {
               </div>
             )}
           </div>
-          
-                    {error && (
+
+          {error && (
             <p role="alert" className="rounded border border-rose-300 bg-rose-50 p-2 text-sm text-rose-800">
               Could not compute this run: {error}. Change an input and try again.
             </p>
