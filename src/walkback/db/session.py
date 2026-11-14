@@ -1,16 +1,8 @@
-"""Engine and session factory. Reads DATABASE_URL from the environment."""
-import os
-
+"""Engine and session factory. The URL comes from the caller (DATABASE_URL in production)."""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 
-def get_engine():
-    url = os.environ.get("DATABASE_URL")
-    if not url:
-        raise RuntimeError("DATABASE_URL is not set")
-    return create_engine(url, pool_pre_ping=True)
-
-
-def get_session_factory():
-    return sessionmaker(bind=get_engine(), expire_on_commit=False)
+def make_session_factory(url: str, **engine_kwargs):
+    engine = create_engine(url, pool_pre_ping=True, **engine_kwargs)
+    return sessionmaker(bind=engine, expire_on_commit=False)
