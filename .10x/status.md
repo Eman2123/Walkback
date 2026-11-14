@@ -11,8 +11,11 @@ Done:
 - Vite + React + Tailwind skeleton (web/)
 - .10x state files
 
+Done (added):
+- POST /api/runs computes walkback and calibration on the dev tile; cache by parameter hash; GET /api/runs/{id}
+- Impassable-neighbour bug in travel time fixed (test added)
+
 Not done:
-- POST /api/runs compute (returns 501)
 - Neon schema and Alembic migrations
 - Rate limit
 - 21st.dev components (needs API_KEY_21ST)
