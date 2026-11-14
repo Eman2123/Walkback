@@ -18,13 +18,20 @@ export default function ResultsPanel({ run, busy }) {
         Brier score {s.brier} (lower is better). {run.cached ? "From cache." : "Computed now."}
         {busy ? " Updating…" : ""}
       </p>
-            {s.coverage != null && s.coverage < 0.95 ? (
+           
+         {s.coverage == null ? (
+        <p className="text-xs text-slate-500">
+          Coverage is not available for this run (the truth area is empty).
+        </p>
+      ) : s.coverage < 0.95 ? (
         <p className="rounded bg-rose-50 p-2 text-xs font-semibold text-rose-800">
           Shortfall: coverage is below 95 %. This is reported as a failure, not a pass.
         </p>
       ) : (
-        <p className="text-xs text-slate-400">Coverage target of 95 % reached for this run.</p>
+        <p className="text-xs text-slate-400">Coverage is 95 % or higher for this run.</p>
       )}
+
+
     </div>
   );
 }
