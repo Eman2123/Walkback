@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Walkback scenario",
+  "type": "object",
+  "required": ["scenario", "grid", "assumptions", "provenance"],
+  "properties": {
+    "scenario": {"type": "object", "required": ["id", "name"]},
+    "grid": {"type": "object", "required": ["resolution_m"]},
+    "region": {"type": "object", "properties": {
+      "deterministic": {"type": "object"},
+      "truth": {"type": "object"}}},
+    "calibration": {"type": "object", "properties": {
+      "reliability": {"type": "array"},
+      "brier": {"type": "number"}}},
+    "coverage": {"type": "object", "properties": {
+      "value": {"type": "number"}, "ci_low": {"type": "number"}, "ci_high": {"type": "number"}}},
+    "assumptions": {"type": "array", "items": {
+      "type": "object", "required": ["name", "value", "label"],
+      "properties": {"label": {"enum": ["measured", "derived", "assumed"]}}}},
+    "provenance": {"type": "array", "items": {
+      "type": "object", "required": ["source", "date", "resolution_m", "limitation"]}}
+  }
+}
