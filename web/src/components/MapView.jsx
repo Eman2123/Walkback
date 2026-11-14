@@ -30,7 +30,7 @@ export default function MapView({ run, habitat, layers, onHabitatClick }) {
   return (
     <svg
       viewBox={`0 0 ${size} ${size}`}
-      className="w-full cursor-crosshair rounded-lg bg-slate-800"
+      className="mx-auto aspect-square w-full max-w-[720px] cursor-crosshair rounded-lg bg-slate-800"
       onClick={handleClick}
       role="img"
       aria-label="Walkback map. Click to place the habitat."
