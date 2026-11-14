@@ -1,0 +1,22 @@
+services:
+  api:
+    build: .
+    env_file: .env          # DATABASE_URL, CORS_ORIGINS; never committed
+    ports:
+      - "127.0.0.1:8000:8000"   # only Caddy reaches it
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  caddy_data:

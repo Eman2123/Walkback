@@ -1,0 +1,9 @@
+# Replace api.example.com with the real domain before deploying.
+api.example.com {
+    reverse_proxy api:8000
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        -Server
+    }
+}
