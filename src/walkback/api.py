@@ -1,20 +1,26 @@
-"""FastAPI service for Walkback. Input is untrusted: every field is range-checked here.
+"""FastAPI service for Walkback. Input is untrusted: every field is range-checked here."""
+from __future__ import annotations
 
-Compute is not wired yet: POST /api/runs validates and returns 501 until the pipeline is connected.
-"""
 import os
+import uuid
+from functools import lru_cache
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-ALLOWED_TILES = frozenset({"jezero-20m", "jezero-200m"})
-GRID_SIZE = 100  # cells per side; fixed so a request cannot ask for a bigger grid
+from .compute import compute_run
+from .params import param_hash
+from .store import STORE
+from .tiles import DEV_TILE_ID, DEFAULT_TILE_DIR, load_tile, synthetic_tile
+
+ALLOWED_TILES = frozenset({"jezero-20m", "jezero-200m", DEV_TILE_ID})
+GRID_SIZE = 100
 
 app = FastAPI(
     title="Walkback API",
-    version="0.1.0",
-    docs_url=None,      # no public docs in production
+    version="0.2.0",
+    docs_url=None,
     redoc_url=None,
     openapi_url=None,
 )
@@ -22,10 +28,14 @@ app = FastAPI(
 _origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,          # set to the Vercel domain in production; empty means no cross-origin access
+    allow_origins=_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
+
+
+def _dev_mode() -> bool:
+    return os.environ.get("WALKBACK_ENV", "") == "dev"
 
 
 class RunRequest(BaseModel):
@@ -45,7 +55,23 @@ class RunRequest(BaseModel):
     def tile_must_be_allowed(cls, v: str) -> str:
         if v not in ALLOWED_TILES:
             raise ValueError("unknown tile")
+        if v == DEV_TILE_ID and not _dev_mode():
+            raise ValueError("unknown tile")
         return v
+
+
+@lru_cache(maxsize=1)
+def _dev_tile():
+    return synthetic_tile()
+
+
+def _get_tile(tile_id: str):
+    if tile_id == DEV_TILE_ID:
+        return _dev_tile()
+    tile = load_tile(tile_id, DEFAULT_TILE_DIR)
+    if tile is None:
+        raise HTTPException(status_code=503, detail="terrain tile not built yet")
+    return tile
 
 
 @app.get("/api/health")
@@ -55,5 +81,28 @@ def health() -> dict:
 
 @app.post("/api/runs")
 def create_run(req: RunRequest) -> dict:
-    # Pipeline connection comes next. Until then, be explicit rather than return fake results.
-    raise HTTPException(status_code=501, detail="compute not wired yet")
+    params = req.model_dump()
+    tile_id = params.pop("tile_id")
+    key = param_hash(tile_id, params)
+
+    cached = STORE.get_by_hash(key)
+    if cached is not None:
+        return {"run_id": cached["run_id"], "cached": True, **cached["result"]}
+
+    tile = _get_tile(tile_id)
+    try:
+        result = compute_run(tile, {**params})
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    run_id = str(uuid.uuid4())
+    STORE.put(run_id, key, {"run_id": run_id, "result": result})
+    return {"run_id": run_id, "cached": False, **result}
+
+
+@app.get("/api/runs/{run_id}")
+def get_run(run_id: str) -> dict:
+    stored = STORE.get(run_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return {"run_id": run_id, "cached": True, **stored["result"]}
