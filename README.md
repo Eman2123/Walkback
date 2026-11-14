@@ -12,7 +12,7 @@ Status: foundation. The API validates inputs and returns 501 for compute until t
       explain.py         result explainer (AIML API), numeric guard
       walkback.py        fast marching, speed model
       calibrate.py       reliability bins, Brier, coverage
-      slope.py, degrade.py, crop.py, download.py, export.py
+      slope.py, degrade.py, export.py
       pipeline/          terrain pipeline (scale effect)
       db/                SQLAlchemy models, session, repository
       validation/        validation report
