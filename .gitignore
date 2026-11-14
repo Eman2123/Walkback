@@ -1,13 +1,14 @@
 data/raw/
-data/processed/
+data/processed/*
 *.tif
 *.zip
 __pycache__/
 .venv/
 node_modules/
 .env
-data/processed/
+data/processed/*
 reports/figures/*.png
 .pytest_cache/
 web/dist/
 web/node_modules/
+!data/processed/jezero-20m.npz
