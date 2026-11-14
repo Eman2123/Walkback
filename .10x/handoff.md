@@ -7,3 +7,4 @@
 
 ## History
 - 2026-11-13: design approved, scaffold committed locally.
+- 2026-11-14: CI switched to requirements-api.txt (pipeline geo deps were not verified in CI). Deploy target changed from Vultr to FastAPI Cloud; Vultr deploy workflow removed.
