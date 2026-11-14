@@ -1,4 +1,4 @@
-# ADR 002: Map rendering
+# ADR 003: Map rendering note (see also ADR 002-map-and-crop)
 
 Status: accepted for the build (2026-11-14). Pending Eman's confirmation of the Leaflet alternative.
 
