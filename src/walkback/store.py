@@ -1,9 +1,7 @@
-"""Run storage. In-memory for now; the Neon-backed version uses walkback.db.repository.
-
-Interface kept small so the swap is one file.
-"""
+"""Run storage. Postgres (Neon) when DATABASE_URL is set, otherwise in-memory for local dev and tests."""
 from __future__ import annotations
 
+import os
 import threading
 from typing import Any
 
@@ -29,4 +27,14 @@ class RunStore:
             self._by_hash[param_hash] = run_id
 
 
-STORE = RunStore()
+def _make_store():
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        return RunStore()
+    from .db.session import make_session_factory
+    from .db.store_sql import SqlRunStore
+
+    return SqlRunStore(make_session_factory(url))
+
+
+STORE = _make_store()

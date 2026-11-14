@@ -18,6 +18,11 @@ Done (added):
 - POST /api/runs computes walkback and calibration on the dev tile; cache by parameter hash; GET /api/runs/{id}
 - Impassable-neighbour bug in travel time fixed (test added)
 
+Done (added, latest):
+- Neon-backed run store (SqlRunStore) used when DATABASE_URL is set; tested on sqlite
+- Initial Alembic migration (verified on sqlite)
+- Terrain build script (smoke-tested on a tiny GeoTIFF)
+
 Not done:
 - Neon schema and Alembic migrations
 - 21st.dev components (needs API_KEY_21ST)
