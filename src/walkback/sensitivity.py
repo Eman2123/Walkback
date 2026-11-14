@@ -21,11 +21,12 @@ FIELDS = [
 ]
 
 
-def run_sensitivity(tile: Tile) -> list[dict]:
+def run_sensitivity(tile: Tile, habitat_row: int = 50, habitat_col: int = 50) -> list[dict]:
     rows = []
     for rough in ROUGHNESS_GRID:
         for conf in CONFIDENCE_GRID:
-            params = {**BASE, "roughness": rough, "confidence": conf}
+            params = {**BASE, "habitat_row": habitat_row, "habitat_col": habitat_col,
+                      "roughness": rough, "confidence": conf}
             res = compute_run(tile, params)
             ci = res["stats"]["coverage_ci"]
             rows.append({

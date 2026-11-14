@@ -6,7 +6,7 @@ import pytest
 from walkback.compute import compute_run
 from walkback.tiles import synthetic_tile
 
-PARAMS = {"habitat_row": 50, "habitat_col": 50, "budget_s": 900, "speed_mps": 0.5,
+PARAMS = {"habitat_row": 49, "habitat_col": 50, "budget_s": 900, "speed_mps": 0.5,
           "cutoff_deg": 20.0, "confidence": 0.9, "roughness": 0.5}
 
 
