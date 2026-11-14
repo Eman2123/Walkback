@@ -6,7 +6,7 @@ from walkback.store import RunStore
 
 VALID = {
     "tile_id": "dev-synthetic-20m",
-    "habitat_row": 50, "habitat_col": 50,
+    "habitat_row": 49, "habitat_col": 50,
     "budget_s": 900, "speed_mps": 0.5, "cutoff_deg": 20,
     "confidence": 0.9, "roughness": 0.5,
 }

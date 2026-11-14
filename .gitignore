@@ -11,3 +11,7 @@ reports/figures/*.png
 .pytest_cache/
 web/dist/
 web/node_modules/
+
+# Aider Studio (auto-added)
+REPO_MAP.md
+.aider/

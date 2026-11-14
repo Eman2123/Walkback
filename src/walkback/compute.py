@@ -15,7 +15,7 @@ from .calibrate import brier, coverage, reliability_bins
 from .slope import slope_deg
 from .tiles import Tile
 
-ENSEMBLE_K = 16          # realizations for the calibrated region
+ENSEMBLE_K = 128         # realizations for the calibrated region
 ENSEMBLE_SEED = 1234     # fixed, so the same parameters give the same result
 NEIGHBOURS = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]
 
@@ -94,8 +94,8 @@ def compute_run(tile: Tile, params: dict) -> dict:
 
     slope_coarse = slope_deg(tile.coarse, cell)
     slope_fine = slope_deg(tile.fine, cell)
-    if slope_coarse[hab] >= cutoff:
-        raise ValueError("habitat is on an impassable cell")
+    if slope_coarse[hab] >= cutoff or slope_fine[hab] >= cutoff:
+        raise ValueError("habitat is impassable at coarse or fine resolution")
 
     det = travel_time(speed_field(slope_coarse, v_flat, cutoff), hab, cell) <= budget
     truth = travel_time(speed_field(slope_fine, v_flat, cutoff), hab, cell) <= budget
