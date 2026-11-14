@@ -127,9 +127,23 @@ export default function App() {
 
 
 
-
-          <MapView run={run} habitat={params} layers={layers} onHabitatClick={placeHabitat} />
-          {error && <p className="text-sm text-rose-700">Error: {error}</p>}
+                     <div className="relative mx-auto w-full max-w-[720px]">
+            <MapView run={run} habitat={params} layers={layers} onHabitatClick={placeHabitat} />
+            {busy && (
+              <div
+                role="status"
+                className="absolute right-2 top-2 rounded bg-white/90 px-2 py-1 text-xs text-slate-700 shadow"
+              >
+                Updating…
+              </div>
+            )}
+          </div>
+          
+                    {error && (
+            <p role="alert" className="rounded border border-rose-300 bg-rose-50 p-2 text-sm text-rose-800">
+              Could not compute this run: {error}. Change an input and try again.
+            </p>
+          )}
         </section>
 
         <aside className="space-y-4">

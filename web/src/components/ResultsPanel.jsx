@@ -2,7 +2,9 @@
 import { fmtCI, fmtKm2, fmtPct } from "../lib/format.js";
 
 export default function ResultsPanel({ run, busy }) {
-  if (!run) return <p className="text-sm text-slate-500">Click the map to place the habitat.</p>;
+   if (!run) {
+    return <p className="text-sm text-slate-500">{busy ? "Computing…" : "Waiting for the first result."}</p>;
+  }
   const s = run.stats;
   return (
     <div className="space-y-2 text-sm">
@@ -16,7 +18,13 @@ export default function ResultsPanel({ run, busy }) {
         Brier score {s.brier} (lower is better). {run.cached ? "From cache." : "Computed now."}
         {busy ? " Updating…" : ""}
       </p>
-      <p className="text-xs text-slate-400">Coverage below 95 % is a shortfall, not a pass.</p>
+            {s.coverage != null && s.coverage < 0.95 ? (
+        <p className="rounded bg-rose-50 p-2 text-xs font-semibold text-rose-800">
+          Shortfall: coverage is below 95 %. This is reported as a failure, not a pass.
+        </p>
+      ) : (
+        <p className="text-xs text-slate-400">Coverage target of 95 % reached for this run.</p>
+      )}
     </div>
   );
 }
