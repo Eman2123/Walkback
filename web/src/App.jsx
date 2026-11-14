@@ -103,6 +103,31 @@ export default function App() {
               </label>
             ))}
           </div>
+
+
+
+          <div className="flex flex-wrap gap-4 text-xs text-slate-600">
+            <span className="flex items-center gap-1">
+              <i className="inline-block h-3 w-3 rounded-sm" style={{ background: "rgba(47,111,221,0.6)" }} />
+              Deterministic (coarse DEM)
+            </span>
+            <span className="flex items-center gap-1">
+              <i className="inline-block h-3 w-3 rounded-sm" style={{ background: "rgba(31,157,85,0.7)" }} />
+              Calibrated (at your confidence threshold)
+            </span>
+            <span className="flex items-center gap-1">
+              <i className="inline-block h-3 w-3 rounded-sm border-2" style={{ borderColor: "#e07b00" }} />
+              Truth (1 m DTM)
+            </span>
+            <span className="flex items-center gap-1">
+              <i className="inline-block h-3 w-3 rounded-full border-2 border-slate-800 bg-white" />
+              Habitat
+            </span>
+          </div>
+
+
+
+
           <MapView run={run} habitat={params} layers={layers} onHabitatClick={placeHabitat} />
           {error && <p className="text-sm text-rose-700">Error: {error}</p>}
         </section>
