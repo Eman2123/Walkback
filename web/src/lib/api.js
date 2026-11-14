@@ -16,3 +16,4 @@ async function request(path, options = {}) {
 export const getHealth = () => request("/api/health");
 export const postRun = (params) => request("/api/runs", { method: "POST", body: JSON.stringify(params) });
 export const getRun = (id) => request(`/api/runs/${encodeURIComponent(id)}`);
+export const explainRun = (id) => request(`/api/runs/${encodeURIComponent(id)}/explain`, { method: "POST" });
