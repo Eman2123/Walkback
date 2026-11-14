@@ -12,12 +12,14 @@ Done:
 - .10x state files
 
 Done (added):
+- Frontend: map (SVG, click to place habitat), controls, results, reliability chart, assumptions, explain panel. Vite build passes.
+- Explain endpoint (AIML API, summary only, no geometry sent).
+- Rate limit per IP on POST routes.
 - POST /api/runs computes walkback and calibration on the dev tile; cache by parameter hash; GET /api/runs/{id}
 - Impassable-neighbour bug in travel time fixed (test added)
 
 Not done:
 - Neon schema and Alembic migrations
-- Rate limit
 - 21st.dev components (needs API_KEY_21ST)
 - Vultr VM provisioning, DNS, Caddy live
 - Push to GitHub (no credentials in this environment)

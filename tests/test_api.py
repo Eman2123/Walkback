@@ -78,3 +78,48 @@ def test_unknown_tile_rejected(client):
 
 def test_extra_fields_rejected(client):
     assert client.post("/api/runs", json={**VALID, "grid_size": 5000}).status_code == 422
+
+
+def test_explain_404_for_unknown_run(client):
+    assert client.post("/api/runs/nope/explain").status_code == 404
+
+
+def test_explain_503_when_not_configured(client, monkeypatch):
+    monkeypatch.delenv("AIMLAPI_API_KEY", raising=False)
+    run_id = client.post("/api/runs", json=VALID).json()["run_id"]
+    assert client.post(f"/api/runs/{run_id}/explain").status_code == 503
+
+
+def test_explain_returns_text_and_sends_no_geometry(client, monkeypatch):
+    monkeypatch.setenv("AIMLAPI_API_KEY", "test-key")
+    monkeypatch.setenv("AIML_MODEL", "test-model")
+    seen = {}
+
+    def fake_explain(summary, client_obj, model):
+        seen["summary"] = summary
+        seen["model"] = model
+        return "The calibrated region is consistent with the run."
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            pass
+
+    monkeypatch.setattr(api, "explain_run", fake_explain)
+    import types, sys
+    fake_mod = types.ModuleType("openai")
+    fake_mod.OpenAI = FakeOpenAI
+    monkeypatch.setitem(sys.modules, "openai", fake_mod)
+
+    run_id = client.post("/api/runs", json=VALID).json()["run_id"]
+    r = client.post(f"/api/runs/{run_id}/explain")
+    assert r.status_code == 200
+    assert r.json()["text"].startswith("The calibrated")
+    assert "regions" not in seen["summary"]
+    assert seen["model"] == "test-model"
+
+
+def test_rate_limit_returns_429(client, monkeypatch):
+    monkeypatch.setattr(api, "LIMITER", api.RateLimiter(2))
+    assert client.post("/api/runs", json=VALID).status_code == 200
+    assert client.post("/api/runs", json={**VALID, "budget_s": 600}).status_code == 200
+    assert client.post("/api/runs", json={**VALID, "budget_s": 700}).status_code == 429
