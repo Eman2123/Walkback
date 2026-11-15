@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { explainRun, getHealth, getRun, postRun } from "./lib/api.js";
+import { explainRun, getHealth, getRun, loadBasemapMeta, postRun } from "./lib/api.js";
+import { cellLatLon, fmtLatLon } from "./lib/format.js";
 import {
   AssumptionsPanel,
   ControlPanel,
@@ -53,8 +54,14 @@ export default function App() {
   const [explanation, setExplanation] = useState("");
   const [explaining, setExplaining] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [basemapKind, setBasemapKind] = useState("photo");
+  const [basemapMeta, setBasemapMeta] = useState(null);
   const timer = useRef(null);
   const touched = useRef(false);
+
+  useEffect(() => {
+    loadBasemapMeta(TILE_ID).then(setBasemapMeta);
+  }, []);
 
   useEffect(() => {
     getHealth().then((j) => setApi(j.status)).catch(() => setApi("unreachable"));
@@ -139,6 +146,7 @@ export default function App() {
   }
 
   const dot = api === "ok" ? "bg-neon" : api === "checking…" ? "bg-mute" : "bg-sun";
+  const habitatPos = basemapKind === "photo" ? cellLatLon(basemapMeta, params.habitat_row, params.habitat_col) : null;
   const synthetic = run?.demo || run?.tile?.label?.toUpperCase().includes("SYNTHETIC");
 
   return (
@@ -190,6 +198,7 @@ export default function App() {
               <span className="flex items-center gap-2 px-1 text-sm text-mute">
                 <i className="inline-block h-3 w-3 bg-cream outline outline-2 outline-ink" />
                 Habitat (click the map to move it)
+                {habitatPos && <span className="text-cream">: {fmtLatLon(habitatPos.lat, habitatPos.lon)}</span>}
               </span>
               {canShare && (
                 <button type="button" onClick={copyLink} className="px-btn ml-auto">
@@ -199,7 +208,7 @@ export default function App() {
             </div>
 
             <div className="relative">
-              <MapView run={run} habitat={params} layers={layers} onHabitatClick={placeHabitat} tileId={TILE_ID} />
+              <MapView run={run} habitat={params} layers={layers} onHabitatClick={placeHabitat} tileId={TILE_ID} onBasemapChange={setBasemapKind} />
               {busy && (
                 <div
                   role="status"
@@ -220,11 +229,19 @@ export default function App() {
               <strong className="font-pixel text-[9px] font-normal uppercase text-sun">Basemap </strong>
               {synthetic ? (
                 "synthetic development terrain, not Mars data. "
+              ) : basemapKind === "photo" ? (
+                <>
+                  real HiRISE orthophoto of this exact 2 km window (NASA/JPL-Caltech/University of Arizona; USGS
+                  Astrogeology Mars 2020 TRN orthomosaic, DOI 10.5066/P9QJDP48), north up, shown as captured, with
+                  no colour added.
+                  {basemapMeta?.points?.centre &&
+                    ` Window centre ${fmtLatLon(basemapMeta.points.centre.lat, basemapMeta.points.centre.lon)}.`}{" "}
+                </>
               ) : (
                 <>
                   shaded relief derived from the coarse 20 m DEM, which is derived from the Mars 2020 TRN HiRISE DTM
                   of Jezero crater (USGS Astrogeology, from NASA HiRISE stereo images; DOI 10.5066/P9REJ9JN). Local
-                  metres, about 18.4&deg;N 77.6&deg;E.{" "}
+                  metres, Jezero crater.{" "}
                 </>
               )}
               Explore the planet in{" "}

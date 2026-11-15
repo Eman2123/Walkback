@@ -15,4 +15,4 @@ Rules:
 Layout:
 - src/components/: one component per file, each with an owner comment at the top.
 - src/lib/: api client and formatting helpers.
-- public/: static assets (the Jezero hillshade PNG goes here once built).
+- public/: static assets. basemap-jezero-20m.jpg and .json (real HiRISE crop, from scripts/build_basemap.py) go here; without them the map uses the shaded relief.

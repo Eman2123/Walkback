@@ -1,7 +1,8 @@
 // Owner: Urooj. SVG map in local metres. Click a cell to place the habitat.
+// Basemap order: real HiRISE orthophoto (public/basemap-<tile>.jpg), then shaded relief from the API, then plain.
 // Regions come from the API as GeoJSON MultiPolygon in metres (CRS.Simple style, y grows downward).
 import { useEffect, useState } from "react";
-import { reliefUrl } from "../lib/api.js";
+import { basemapUrl, reliefUrl } from "../lib/api.js";
 
 const N = 100;
 
@@ -16,14 +17,25 @@ function toPath(geojson) {
     .join(" ");
 }
 
-export default function MapView({ run, habitat, layers, onHabitatClick, tileId: fallbackTileId }) {
+export default function MapView({ run, habitat, layers, onHabitatClick, tileId: fallbackTileId, onBasemapChange }) {
   const cell = run?.tile?.cell_m ?? 20;
   // The basemap belongs to the tile, not to a run, so it still shows when a run fails.
   const tileId = run?.tile?.id ?? fallbackTileId;
+  const [photoOk, setPhotoOk] = useState(true);
   const [reliefOk, setReliefOk] = useState(true);
   // A new tile gets a fresh attempt; a recorded demo has no real terrain to draw.
-  useEffect(() => setReliefOk(true), [tileId]);
-  const showRelief = Boolean(!run?.demo && tileId && reliefOk);
+  useEffect(() => {
+    setPhotoOk(true);
+    setReliefOk(true);
+  }, [tileId]);
+  const showPhoto = Boolean(!run?.demo && tileId && photoOk);
+  const showRelief = Boolean(!run?.demo && tileId && !showPhoto && reliefOk);
+  const showImage = showPhoto || showRelief;
+  const kind = showPhoto ? "photo" : showRelief ? "relief" : "none";
+  // Tell the page which basemap is really on screen, so its caption never describes the wrong one.
+  useEffect(() => {
+    onBasemapChange?.(kind);
+  }, [kind]);
   const size = N * cell;
   const line = size / 500;
 
@@ -53,20 +65,21 @@ export default function MapView({ run, habitat, layers, onHabitatClick, tileId: 
       shapeRendering="crispEdges"
     >
       <rect width={size} height={size} fill="#1b1226" />
-      {showRelief && (
+      {showImage && (
         <image
-          href={reliefUrl(tileId)}
+          key={showPhoto ? "photo" : "relief"}
+          href={showPhoto ? basemapUrl(tileId) : reliefUrl(tileId)}
           x={0}
           y={0}
           width={size}
           height={size}
           preserveAspectRatio="none"
-          onError={() => setReliefOk(false)}
+          onError={() => (showPhoto ? setPhotoOk(false) : setReliefOk(false))}
         />
       )}
 
       {gridLines.map((m) => (
-        <g key={m} stroke="#f5e6c8" strokeOpacity={showRelief ? 0.22 : 0.1} strokeWidth={line} strokeDasharray={`${cell * 0.5} ${cell * 0.5}`}>
+        <g key={m} stroke="#f5e6c8" strokeOpacity={showImage ? 0.22 : 0.1} strokeWidth={line} strokeDasharray={`${cell * 0.5} ${cell * 0.5}`}>
           <line x1={m} y1={0} x2={m} y2={size} />
           <line x1={0} y1={m} x2={size} y2={m} />
         </g>
