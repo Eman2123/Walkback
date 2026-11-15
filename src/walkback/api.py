@@ -47,12 +47,30 @@ def warn_if_unsafe_deployment() -> bool:
 warn_if_unsafe_deployment()
 
 _DEFAULT_ORIGINS = ["https://walkback-rlvz.vercel.app"]
-_origins = [o.strip().rstrip("/") for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
-if not _origins:
-    _origins = _DEFAULT_ORIGINS
+# Frontend previews and aliases of this project on Vercel (walkback-git-<branch>-<team>.vercel.app and similar).
+# The API sends no cookies and takes no credentials, so allowing these origins exposes nothing a direct call would not.
+_DEFAULT_ORIGIN_REGEX = r"https://walkback[a-z0-9-]*\.vercel\.app"
+
+
+def cors_settings(env: dict | None = None) -> tuple[list[str], str | None]:
+    """Allowed browser origins: CORS_ORIGINS PLUS the default frontend, never instead of it.
+
+    A CORS_ORIGINS that is set (for example the README placeholder) used to replace the default, which blocked the
+    real frontend with "No Access-Control-Allow-Origin header". CORS_ORIGIN_REGEX overrides the preview pattern;
+    set it to an empty string to turn the pattern off.
+    """
+    env = os.environ if env is None else env
+    configured = [o.strip().rstrip("/") for o in env.get("CORS_ORIGINS", "").split(",") if o.strip()]
+    origins = list(dict.fromkeys(configured + _DEFAULT_ORIGINS))
+    regex = env.get("CORS_ORIGIN_REGEX", _DEFAULT_ORIGIN_REGEX)
+    return origins, (regex or None)
+
+
+_origins, _origin_regex = cors_settings()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
+    allow_origin_regex=_origin_regex,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )

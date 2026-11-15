@@ -1,19 +1,10 @@
 // Single place that talks to the backend. Components never call fetch directly.
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
+// Same-origin "/api" first (Vercel forwards it to the backend, see vercel.json), then VITE_API_URL if one is set.
+import { makeClient } from "./transport.js";
 
-async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    const err = new Error(body.detail ?? `HTTP ${res.status}`);
-    err.status = res.status;
-    throw err;
-  }
-  return res.json();
-}
+const API_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
+const client = makeClient({ bases: API_URL ? ["", API_URL] : [""] });
+const request = (path, options, opts) => client.request(path, options, opts);
 
 // Recorded result shown when the backend is down or not connected yet.
 async function loadDemo() {
@@ -23,7 +14,7 @@ async function loadDemo() {
 }
 
 // Shaded-relief basemap made by the backend from the real terrain tile.
-export const reliefUrl = (tileId) => `${API_BASE}/api/tiles/${encodeURIComponent(tileId)}/relief.png`;
+export const reliefUrl = (tileId) => `${client.activeBase()}/api/tiles/${encodeURIComponent(tileId)}/relief.png`;
 
 // Real HiRISE orthophoto of the analysis window, written by scripts/build_basemap.py into public/.
 // It is optional: when it is missing the map falls back to the shaded relief.
@@ -40,18 +31,7 @@ export async function loadBasemapMeta(tileId) {
   }
 }
 
-export async function loadRouteFeasibility() {
-  try {
-    const res = await fetch(`${import.meta.env.BASE_URL}route-feasibility.json`);
-    if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) return null;
-    const d = await res.json();
-    return Array.isArray(d?.rows) && d?.headline ? d : null;
-  } catch {
-    return null;
-  }
-}
-
-export const getHealth = () => request("/api/health");
+export const getHealth = () => request("/api/health", {}, { timeout: 12000 });
 
 export const postRun = async (params) => {
   try {

@@ -322,7 +322,8 @@ python scripts/find_steep_windows.py --help # rank DTM windows by steepness
 | Variable | Where | Meaning |
 |---|---|---|
 | `DATABASE_URL` | API | Postgres URL (`postgresql+psycopg://...?sslmode=require`). Without it the API keeps runs in memory (bounded, cleared on restart) |
-| `CORS_ORIGINS` | API | Comma-separated browser origins allowed to call the API, for example your Vercel URL |
+| `CORS_ORIGINS` | API | Extra browser origins allowed to call the API (added to the default frontend, never replacing it). Not needed with the `web/vercel.json` rewrite |
+| `CORS_ORIGIN_REGEX` | API | Pattern for frontend preview origins, default `https://walkback[a-z0-9-]*\\.vercel\\.app`; empty turns it off |
 | `AIMLAPI_API_KEY`, `AIML_MODEL` | API | Enable `/explain`. Without them it returns `503` |
 | `AIML_BASE_URL` | API | Defaults to `https://api.aimlapi.com/v1` |
 | `WALKBACK_TILE_DIR` | API | Folder holding `jezero-20m.npz` (default `data/processed`) |
@@ -357,6 +358,13 @@ The repository is prepared for this: `app.py` at the root exposes the FastAPI ap
 5. Put the frontend URL into `CORS_ORIGINS` of the backend project and redeploy the backend.
 
    **No-CORS option (used for the live demo).** `web/vercel.json` forwards `/api/*` from the frontend to the backend, so the browser only talks to its own origin and no preflight request is made. To use it, do not set `VITE_API_URL` in the frontend project, and change the destination in `web/vercel.json` to your backend URL. `CORS_ORIGINS` is then not needed for the Vercel site, but keep it for any other origin that calls the API directly.
+
+**If the app says `API: UNREACHABLE` on Vercel.** Open the browser console (F12). The frontend now asks its own origin (`/api`, forwarded by `web/vercel.json`) first, then `VITE_API_URL`, retries after a cold start and re-checks every 15 s, so a slow first answer no longer sticks.
+
+- `blocked by CORS policy ... No 'Access-Control-Allow-Origin'`: the browser called the backend directly and the backend refused that origin. The backend now always allows `https://walkback-rlvz.vercel.app` and `https://walkback*.vercel.app` in addition to `CORS_ORIGINS` (before, a `CORS_ORIGINS` value such as the placeholder replaced the default). Redeploy the **backend** to get this. Simplest of all: delete `VITE_API_URL` in the frontend project and redeploy the frontend, then no CORS is involved.
+- The rewrite destination in `web/vercel.json` must be the production URL of your backend project.
+- A preview deployment of the backend can be behind Vercel Deployment Protection (it answers 401 without CORS headers). Point the rewrite at the production URL.
+- Check the backend alone: open `https://YOUR-BACKEND.vercel.app/api/health`; it should answer `{"status":"ok", ...}` within a few seconds even when cold.
 
 **Other hosts**
 

@@ -206,3 +206,22 @@ def test_warning_when_several_workers_share_no_database(monkeypatch, caplog):
     assert api.warn_if_unsafe_deployment() is False
     monkeypatch.setenv("WEB_CONCURRENCY", "not-a-number")
     assert api.warn_if_unsafe_deployment() is False
+
+
+def test_cors_keeps_the_default_frontend_when_cors_origins_is_set():
+    origins, regex = api.cors_settings({"CORS_ORIGINS": "https://your-app.vercel.app/, https://other.example"})
+    assert origins == ["https://your-app.vercel.app", "https://other.example", "https://walkback-rlvz.vercel.app"]
+    assert api.cors_settings({})[0] == ["https://walkback-rlvz.vercel.app"]
+    assert api.cors_settings({"CORS_ORIGIN_REGEX": ""})[1] is None
+    assert regex
+
+
+def test_cors_preflight_from_the_frontend_and_previews_but_not_strangers():
+    c = TestClient(api.app)
+    ask = lambda origin: c.options("/api/runs", headers={                                  # noqa: E731
+        "Origin": origin, "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type"})
+    for ok in ("https://walkback-rlvz.vercel.app", "https://walkback-git-fix-x-eman2123.vercel.app"):
+        r = ask(ok)
+        assert r.status_code == 200 and r.headers["access-control-allow-origin"] == ok
+    for bad in ("https://evil.example", "https://notwalkback.vercel.app", "http://walkback-rlvz.vercel.app"):
+        assert "access-control-allow-origin" not in ask(bad).headers
