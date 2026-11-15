@@ -4,3 +4,4 @@ Planned:
 - scripts/build_terrain.py: crop, degrade, slope, scale effect, write terrain_tiles rows.
 - scripts/run_validation.py: reads PREREGISTRATION.md, runs the validation, writes reports/.
 - scripts/seed_db.py: loads datasets and terrain_tiles into Neon (after migrations).
+- scripts/find_steep_windows.py: scans a 1 m DTM and prints the steepest non-overlapping 2 km windows, with ready-to-run build_terrain.py commands. Selection rule is registered in PREREGISTRATION.md.
