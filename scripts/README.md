@@ -5,3 +5,4 @@ Planned:
 - scripts/run_validation.py: reads PREREGISTRATION.md, runs the validation, writes reports/.
 - scripts/seed_db.py: loads datasets and terrain_tiles into Neon (after migrations).
 - scripts/find_steep_windows.py: scans a 1 m DTM and prints the steepest non-overlapping 2 km windows, with ready-to-run build_terrain.py commands. Selection rule is registered in PREREGISTRATION.md.
+- scripts/run_validation.py: extended validation (staircase, grid200, grid200 + hurst) over every tile in data/processed; writes reports/validation_extended.md and .csv. Registered in PREREGISTRATION.md.

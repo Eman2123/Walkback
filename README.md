@@ -22,7 +22,8 @@ Terrain: Mars 2020 TRN HiRISE DTM (USGS Astrogeology, from NASA HiRISE stereo im
       api.py             FastAPI app, input validation
       params.py          parameter validation and cache key
       explain.py         result explainer (AIML API), numeric guard
-      walkback.py        fast marching, speed model
+      compute.py         speed model, 8-connected Dijkstra travel time, ensemble calibration
+      walkback.py        deprecated stub (moved to compute.py)
       calibrate.py       reliability bins, Brier, coverage
       slope.py, degrade.py, export.py
       pipeline/          terrain pipeline (scale effect)
