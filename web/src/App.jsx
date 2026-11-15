@@ -11,6 +11,7 @@ import {
   MapView,
   ReliabilityChart,
   ResultsPanel,
+  RouteFeasibilityPanel,
 } from "./components/index.js";
 
 const TILE_ID = import.meta.env.VITE_TILE_ID ?? "jezero-20m";
@@ -335,6 +336,9 @@ export default function App() {
           </Card>
           <Card title="Reliability">
             <ReliabilityChart bins={run?.calibration?.bins} />
+          </Card>
+          <Card title="Route check">
+            <RouteFeasibilityPanel params={params} />
           </Card>
           <Card>
             <ExplainPanel onExplain={handleExplain} text={explanation} loading={explaining} disabled={!run} />

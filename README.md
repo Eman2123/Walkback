@@ -189,6 +189,8 @@ flowchart TD
 - `speed_model="minetti"` and `"minetti_cap"` use the Minetti et al. 2002 walking-cost polynomial (Earth treadmill data; no Mars gravity, no suit). The uncapped factor speeds the crew up to about 4 times downhill, so `minetti_cap` (factor at most 1) is the one to read.
 - `direction="back"` is the time from each cell **to** the habitat, which is what "walkback" means; the registered `"out"` is the time from the habitat. Truth area moves by a factor of 0.65 to 2.6 depending on these assumptions.
 
+**Route feasibility** (exploratory, registered before it was run): the area says nothing about whether the route the planner would pick works. Walking the planner's own route on the 1 m truth (Jezero, v2, roughness 0.5, confidence 0.9), 88.8 % of the 987 calibrated cells have a route that gets home within the budget (none cross a truth-impassable cell, 111 are too slow). That is below 1 minus the area false reach (92.7 %), as registered in advance. One Jezero window, no steep tile run. See [reports/route_feasibility.md](reports/route_feasibility.md). A 30-second script built on the repo's numbers: [docs/video-script.md](docs/video-script.md).
+
 Reports: [reports/](reports/) (`steep_p/` holds the 63 validation rows and 540 solver rows as CSV and Markdown).
 
 ## Architecture
@@ -298,6 +300,8 @@ cp .env.example .env                 # set VITE_API_URL=http://localhost:8000
 npm run dev                          # http://localhost:5173
 ```
 
+The app shows the map, controls, result, assumptions, reliability chart and a **Route check** card. The Route check card reads `web/public/route-feasibility.json`, a fixed report written by `scripts/route_feasibility.py` (Jezero, v2). It is not recomputed when you move the sliders: it shows the matching row if your roughness and confidence are one of the 9 reported, and the headline row otherwise.
+
 The tile `data/processed/jezero-20m.npz` is committed, so the API works straight after cloning. With `WALKBACK_ENV=dev` it also serves a synthetic tile (`dev-synthetic-20m`) for development; a production server rejects that tile id.
 
 **Optional: explanations.** Set `AIMLAPI_API_KEY` and `AIML_MODEL` (for example `anthropic/claude-haiku-5.5`). `python scripts/check_aiml.py` sends one short test message and prints `OK:` or the error.
@@ -309,6 +313,7 @@ pip install -r requirements-pipeline.txt
 python scripts/build_terrain.py --help      # build a 20 m tile from the 1 m DTM
 python scripts/run_validation.py            # extended validation
 python scripts/run_solver_directional.py    # solver and direction comparison
+PYTHONPATH=src python scripts/route_feasibility.py   # route feasibility, also rewrites web/public/route-feasibility.json
 python scripts/find_steep_windows.py --help # rank DTM windows by steepness
 ```
 
@@ -404,7 +409,7 @@ src/walkback/          Python package
   explain.py           explainer with the numeric guard
   tiles.py, slope.py, degrade.py, export.py
   pipeline/            terrain pipeline, steep-window finder
-  validation/          validation report code
+  validation/          validation report code, route feasibility
   db/                  SQLAlchemy models, session, repository
 web/                   Vite + React + Tailwind frontend (pixel theme)
 migrations/            Alembic migrations (DATABASE_URL from the environment)
