@@ -74,3 +74,32 @@ Limits stated in advance: the windows are selected using the truth slope, so the
 
 Change log (steep-window section)
 - Registered 2026-11-15, before scripts/find_steep_windows.py was run on the real DTM. It was tested only on a synthetic GeoTIFF.
+
+## Extended validation and sub-grid roughness (exploratory, registered 2026-11-15 BEFORE any of it was run)
+
+Why (found by reviewing the code and measuring on the committed tile, before any result below existed):
+- The registered roughness factor is multiplicative (slope x exp(roughness x z)). A cell the planner sees as nearly flat can never be made steep by it. On the Jezero tile at roughness 0.5, 16 of the 20 truth cells at or above 20 deg have a staircase planner slope below 4.46 deg (the level a 3-sigma factor still cannot lift to 20 deg); for grid200 it is 18 of 20. Only at roughness 1.0 does grid200 reach all of them.
+- The reliability diagram checks the probability of a steep cell, but the calibrated region is built from the probability of reaching a cell. The quantity behind "confidence" has never been checked against the truth.
+- The Wilson interval treats cells as independent. Cells are spatially correlated, so it is probably too narrow.
+- The travel-time solver is an 8-connected Dijkstra, not fast marching (docs said fast marching). Measured on flat ground at uniform speed: path length is up to 8.2 % above the straight-line distance, and the 900 s reach area is 0.575 km2 against 0.636 km2 for the true circle (-9.6 %). This is documented, not changed.
+
+What does not change: the registered default, the headline in reports/validation_report.md, the API output, and every number of the registered model. Before any code change a hash of the full result was saved for 45 combinations (registered model, grid200 and pin_start variants, Jezero tile and the synthetic tile). They must be identical after the change; if one differs, the change is reverted.
+
+Added metrics (additive, reported for every row):
+1. Brier skill score = 1 - Brier / no-skill Brier. At or below 0 means no skill.
+2. Reliability of the probability of reaching a cell (p_reach, from the 16 realizations) against the truth reachable set, 10 bins.
+3. Coverage and false reach as a function of the confidence threshold (0.1, 0.25, 0.5, 0.7, 0.9, 0.95), roughness 0.5.
+4. 95 % block-bootstrap interval for coverage: the tile is cut into 10 x 10 cell blocks (200 m), blocks are resampled with replacement, 2000 resamples, seed 0, 2.5th and 97.5th percentiles. Shown next to the Wilson interval. When one interval is needed the wider one is quoted.
+
+Variant "hurst" (exploratory, opt-in, needs planner slope mode grid200). The planner sees only the 200 m DEM and a scale exponent H. G200 is the RMS gradient of the 10 x 10 grid of 200 m block means. The predicted RMS gradient at 20 m is G20 = G200 x 10^(1 - H). The unresolved part per gradient component is sigma = sqrt(max(G20^2 - G200^2, 0) / 2). In each realization the gradient vector of the 200 m model is repeated over its 20 m cells, independent N(0, sigma^2) noise is added to each component of each 20 m cell, and the slope is arctan of the gradient length. The roughness parameter is not used. Everything else is as in the registered model (16 realizations, seed 1234, speed model, cutoff, habitat cell not pinned).
+- H = 0.853, read from reports/scale_effect.md. It was measured on the same 2 km window that is validated, so this variant is IN-SAMPLE. It is labelled so in every output. No out-of-sample claim is made until H comes from a different window.
+- Stated in advance: the noise is Gaussian and thin-tailed, while the truth is heavy-tailed (0.2 % of cells reach 20 deg although the RMS gradient is about 0.09). The variant may therefore still miss most steep cells. It is reported either way.
+
+Runner: scripts/run_validation.py runs, on every tile in data/processed, the registered model (staircase), grid200, and grid200 + hurst. The multiplicative models use the same 9 roughness x confidence combinations (habitat (50, 50), budget 900 s, speed 0.5 m/s assumed, cutoff 20 deg assumed). The hurst model has no roughness, so it has 3 rows (confidence 0.5, 0.7, 0.9). Output: reports/validation_extended.md and reports/validation_extended.csv.
+
+Claims rules: every row of every model is reported; no row is chosen as the result; the registered headline stays a SHORTFALL unless its own numbers say otherwise; a variant is not promoted to the default without its own registration; if no row reaches 95 % coverage, say so. The Jezero tile is one window of one terrain class, so none of this is a claim about other terrain.
+
+Deferred on purpose: direction-dependent speed (uphill and downhill) with a reverse "walk back" solve, because the coefficients need a confirmed source and none is invented here; and a 16-neighbour or fast-marching solver, which would change the registered numbers and needs its own registration.
+
+Change log (extended validation section)
+- Registered 2026-11-15, before the code, before scripts/run_validation.py was run. The 45-combination hash snapshot was taken before any source file changed.
