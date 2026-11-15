@@ -2,6 +2,9 @@ services:
   api:
     build: .
     env_file: .env          # DATABASE_URL, CORS_ORIGINS; never committed
+    environment:
+      # Caddy is the only client of this container. Trust its X-Forwarded-For so the rate limit is per user.
+      FORWARDED_ALLOW_IPS: "*"
     ports:
       - "127.0.0.1:8000:8000"   # only Caddy reaches it
     restart: unless-stopped
