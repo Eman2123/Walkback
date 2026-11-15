@@ -143,3 +143,18 @@ Change log (solver and directional section)
   7. The registered default row (roughness 0.5, confidence 0.9) is still 0.0 % coverage for every staircase configuration, the start-cell re-roll described earlier. No variant fixes it and none was meant to.
   Limits: one 2 km window, 0.2 % of cells steep; Earth treadmill walking, constant power, no Mars gravity or suit; the direction factor uses the staircase elevation for the planner. Nothing here is promoted to the default. The next step needs the steep windows on the owner's computer.
 - Housekeeping 2026-11-15: the commit author and committer of the commits written by the assistant were changed to the repository owner and the assistant's co-author trailers were removed, so every commit hash changed (the file contents did not: the tree hash is identical before and after). The registration commit cited above as b41211a is now 900100c. The original history is kept on the remote branch backup-before-ownership-rewrite. Commit order and dates are unchanged, but the push time of the original commits on GitHub is no longer the record of when each registration was made.
+
+## Steep-window run of the extended and solver/directional models (registered 2026-11-15 BEFORE the steep tiles were built or any model was run on them)
+
+Windows: the 3 windows printed by scripts/find_steep_windows.py on the full 1 m HiRISE Jezero DTM (JEZ_hirise_soc_006_DTM_MOLAtopography_DeltaGeoid_1m_Eqc_latTs0_lon0_blend40.tif), with the selection rule registered above and its defaults, run 2026-11-15: row/col offsets (1 m pixels) 10500/2500 (share at or above 20 deg 33.6 %, habitat cell 19.2 deg), 6000/3500 (32.7 %, 11.9 deg) and 3500/1000 (16.9 %, 4.1 deg). Tile ids steep-1, steep-2, steep-3, built with scripts/build_terrain.py. The first selection attempt used a truncated copy of the DTM (14 MB of 1.84 GB) and failed on read before any window was printed; no result came from it.
+
+Models: scripts/run_validation.py (staircase, grid200, grid200 + hurst) and scripts/run_solver_directional.py over every tile in data/processed, exactly as registered in the two sections above, same fixed parameters (habitat (50, 50), budget 900 s, speed 0.5 m/s, cutoff 20 deg, 16 realizations, seed 1234).
+
+H = 0.853 stays the value measured on the jezero-20m window (row 9744, col 9700, columns 9700 to 11700). The three steep windows lie at columns 1000 to 4500 and do not overlap it, so on them H is OUT-OF-SAMPLE (different window, same DTM and site, one value from one window). On jezero-20m it stays in-sample. The runner labels each hurst row accordingly (this label change was made before any steep tile existed; the jezero-20m tables are byte-identical to the committed ones).
+
+Stated in advance: a habitat cell near the cutoff (window 1: 19.2 deg) may be impassable at 20 m or at 200 m in some models; such a row is reported as "not computed" with its reason, and the window is not replaced. The windows are selected using the truth slope, so these results describe steep terrain chosen to be informative, not a random sample.
+
+Claims rules: all rows of all models on all 3 windows are reported; no window or row is dropped or chosen; a variant is not promoted; if no row reaches 95 % coverage with the lower end of the wider interval at or above 95 %, that is a shortfall; the registered headline stays as it is.
+
+Change log (steep-window run)
+- Registered 2026-11-15, before steep-1, steep-2 and steep-3 were built.

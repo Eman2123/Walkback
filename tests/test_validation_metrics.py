@@ -75,3 +75,18 @@ def test_wider_interval():
     assert wider_interval((0.1, 0.4), (0.2, 0.5)) == (0.1, 0.5)
     assert wider_interval((None, None), (0.2, 0.5)) == (0.2, 0.5)
     assert wider_interval((0.2, 0.5), (None, None)) == (0.2, 0.5)
+
+
+def test_hurst_row_is_in_sample_only_on_the_tile_h_was_measured_on():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import run_validation as rv
+
+    class T:
+        def __init__(self, tile_id):
+            self.tile_id = tile_id
+
+    assert "in-sample" in rv.models_for(T("jezero-20m"), "jezero-20m")[2][0]
+    other = rv.models_for(T("steep-1"), "jezero-20m")[2][0]
+    assert "out-of-sample" in other and "in-sample H" not in other

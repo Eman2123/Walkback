@@ -10,8 +10,9 @@ over the registered 9 roughness x confidence combinations (the hurst model has n
 coverage with a Wilson and a block-bootstrap interval, false reach, Brier, Brier skill score, the reliability of the
 reach probability, and coverage against the confidence threshold. Every row is reported.
 
-H is read from reports/scale_effect.md. That file was measured on the same window that is validated, so the hurst
-model is IN-SAMPLE; the report says so. Pass --hurst to override.
+H is read from reports/scale_effect.md. That file was measured on the jezero-20m window (--h-source-tile), so the hurst
+model is IN-SAMPLE on that tile and out-of-sample on every other tile (other windows of the same DTM; check that the
+windows do not overlap). Each hurst row says which. Pass --hurst to override.
 
 Usage (repo root):
     PYTHONPATH=src python scripts/run_validation.py
@@ -61,6 +62,15 @@ def read_hurst(path: Path) -> float:
     return float(m.group(1))
 
 
+H_SOURCE_TILE = "jezero-20m"   # the tile whose window reports/scale_effect.md was measured on
+
+
+def models_for(tile, h_source):
+    """MODELS with the hurst row labelled in-sample only on the tile H was measured on."""
+    label = "in-sample H" if tile.tile_id == h_source else "out-of-sample H, measured on " + h_source
+    return [(n.replace("in-sample H", label), kw) for n, kw in MODELS]
+
+
 def run_row(tile, kw, rough, conf, hurst):
     params = dict(BASE, confidence=conf, roughness=0.5 if rough is None else rough)
     extra = {"hurst": hurst} if kw["roughness_mode"] == "hurst" else {}
@@ -81,13 +91,14 @@ def run_row(tile, kw, rough, conf, hurst):
     }, None
 
 
-def tile_section(tile, hurst, csv_rows):
+def tile_section(tile, hurst, csv_rows, h_source=H_SOURCE_TILE):
+    models = models_for(tile, h_source)
     cutoff = BASE["cutoff_deg"]
     lines = [f"## Tile: {tile.label}", "", f"Tile id {tile.tile_id}, cell {tile.cell_m:g} m.", ""]
     keep = {}   # model -> fields at the curve setting
     noskill = None
     body = []
-    for name, kw in MODELS:
+    for name, kw in models:
         is_h = kw["roughness_mode"] == "hurst"
         body += [f"### {name}", "",
                  "| roughness | confidence | calibrated km2 | truth km2 | coverage | Wilson 95 % | block bootstrap 95 % "
@@ -132,7 +143,7 @@ def tile_section(tile, hurst, csv_rows):
     lines += ["### Reliability of the reach probability", "",
               "Predicted = mean share of the 16 realizations in which a cell is reachable. Observed = share of those "
               f"cells reachable in the truth. Roughness {CURVE_ROUGHNESS} for the multiplicative models.", ""]
-    for name, _ in MODELS:
+    for name, _ in models:
         if name not in keep:
             continue
         f = keep[name]
@@ -143,9 +154,9 @@ def tile_section(tile, hurst, csv_rows):
 
     lines += ["### Coverage and false reach against the confidence threshold", "",
               f"Roughness {CURVE_ROUGHNESS} for the multiplicative models. Each cell: coverage / false reach (calibrated cells).", "",
-              "| threshold | " + " | ".join(n for n, _ in MODELS if n in keep) + " |",
-              "|---|" + "---|" * sum(1 for n, _ in MODELS if n in keep)]
-    curves = {n: coverage_by_confidence(keep[n]["p_reach"], keep[n]["truth"]) for n, _ in MODELS if n in keep}
+              "| threshold | " + " | ".join(n for n, _ in models if n in keep) + " |",
+              "|---|" + "---|" * sum(1 for n, _ in models if n in keep)]
+    curves = {n: coverage_by_confidence(keep[n]["p_reach"], keep[n]["truth"]) for n, _ in models if n in keep}
     if curves:
         n_rows = len(next(iter(curves.values())))
         for i in range(n_rows):
@@ -161,6 +172,7 @@ def main() -> None:
     ap.add_argument("--tile-dir", type=Path, default=Path("data/processed"))
     ap.add_argument("--tile-ids", nargs="*", help="default: every .npz in the tile directory")
     ap.add_argument("--scale-effect", type=Path, default=Path("reports/scale_effect.md"))
+    ap.add_argument("--h-source-tile", default=H_SOURCE_TILE, help="tile id whose window H was measured on")
     ap.add_argument("--hurst", type=float, help="override H (default: read from the scale-effect report)")
     ap.add_argument("--out-dir", type=Path, default=Path("reports"))
     args = ap.parse_args()
@@ -183,8 +195,10 @@ def main() -> None:
         f"Fixed: habitat ({BASE['habitat_row']}, {BASE['habitat_col']}), budget {BASE['budget_s']} s, speed "
         f"{BASE['speed_mps']} m/s (assumed), cutoff {BASE['cutoff_deg']} deg (assumed), 16 realizations, seed 1234.",
         "",
-        f"The hurst model uses H = {hurst:g}, read from {args.scale_effect}. That value was measured on the same 2 km "
-        "window that is validated here, so every hurst row is IN-SAMPLE. No out-of-sample claim is made.",
+        f"The hurst model uses H = {hurst:g}, read from {args.scale_effect}. That value was measured on the 2 km window of "
+        f"tile {args.h_source_tile}: the hurst rows of that tile are IN-SAMPLE, the hurst rows of every other tile are "
+        "out-of-sample (a different window of the same DTM, same site). One value of H from one window is a thin basis; "
+        "no claim about other terrain is made.",
         "",
         "All rows of all three models are reported. No row is chosen as the result. When one interval is needed, quote the "
         "wider of the Wilson and the block-bootstrap interval. If no row reaches 95 % coverage, that is a shortfall.",
@@ -192,7 +206,7 @@ def main() -> None:
     ]
     csv_rows: list[dict] = []
     for _, tile in tiles:
-        lines += tile_section(tile, hurst, csv_rows)
+        lines += tile_section(tile, hurst, csv_rows, args.h_source_tile)
     lines += [
         "How to read it:",
         "",
