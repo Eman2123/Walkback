@@ -42,21 +42,17 @@ export default function MapView({ run, habitat, layers, onHabitatClick, tileId: 
   const barX = size * 0.04;
   const barY = size * 0.955;
 
+  const px = cell * 0.9; // habitat marker, one block
   return (
     <svg
       viewBox={`0 0 ${size} ${size}`}
-      className="mx-auto aspect-square w-full max-w-[720px] cursor-crosshair rounded-xl shadow-inner ring-1 ring-slate-700"
+      className="px-map mx-auto aspect-square w-full max-w-[720px] cursor-crosshair border-4 border-ink shadow-[6px_6px_0_0_#0d0814]"
       onClick={handleClick}
       role="img"
       aria-label="Walkback map. Click to place the habitat."
+      shapeRendering="crispEdges"
     >
-      <defs>
-        <radialGradient id="mapbg" cx="50%" cy="50%" r="75%">
-          <stop offset="0%" stopColor="#2a374d" />
-          <stop offset="100%" stopColor="#121a28" />
-        </radialGradient>
-      </defs>
-      <rect width={size} height={size} fill="url(#mapbg)" />
+      <rect width={size} height={size} fill="#1b1226" />
       {showRelief && (
         <image
           href={reliefUrl(tileId)}
@@ -70,57 +66,44 @@ export default function MapView({ run, habitat, layers, onHabitatClick, tileId: 
       )}
 
       {gridLines.map((m) => (
-        <g key={m} stroke="#ffffff" strokeOpacity={showRelief ? 0.18 : 0.08} strokeWidth={line}>
+        <g key={m} stroke="#f5e6c8" strokeOpacity={showRelief ? 0.22 : 0.1} strokeWidth={line} strokeDasharray={`${cell * 0.5} ${cell * 0.5}`}>
           <line x1={m} y1={0} x2={m} y2={size} />
           <line x1={0} y1={m} x2={size} y2={m} />
         </g>
       ))}
 
       {run && layers.deterministic && (
-        <path
-          d={toPath(run.regions.deterministic)}
-          fill="rgba(37,99,235,0.28)"
-          stroke="rgba(96,165,250,0.95)"
-          strokeWidth={line}
-        />
+        <path d={toPath(run.regions.deterministic)} fill="rgba(76,201,240,0.30)" stroke="#4cc9f0" strokeWidth={line * 1.2} />
       )}
       {run && layers.calibrated && (
-        <path
-          d={toPath(run.regions.calibrated)}
-          fill="rgba(5,150,105,0.38)"
-          stroke="rgba(52,211,153,0.95)"
-          strokeWidth={line}
-        />
+        <path d={toPath(run.regions.calibrated)} fill="rgba(94,234,138,0.42)" stroke="#5eea8a" strokeWidth={line * 1.2} />
       )}
       {run && layers.truth && (
         <path
           d={toPath(run.regions.truth)}
           fill="none"
-          stroke="#f59e0b"
-          strokeWidth={line * 1.4}
+          stroke="#ffd23f"
+          strokeWidth={line * 1.6}
           strokeDasharray={`${cell * 0.7} ${cell * 0.4}`}
         />
       )}
 
-      {/* Scale bar: 500 m */}
+      {/* Scale bar: 500 m, built from blocks */}
       <g pointerEvents="none">
-        <rect x={barX - 20} y={barY - size / 22} width={540} height={size / 22 + 24} rx={8} fill="#0f172a" fillOpacity="0.65" />
-        <line x1={barX} y1={barY} x2={barX + 500} y2={barY} stroke="#e2e8f0" strokeWidth={line * 2} />
-        <line x1={barX} y1={barY - 14} x2={barX} y2={barY + 14} stroke="#e2e8f0" strokeWidth={line * 2} />
-        <line x1={barX + 500} y1={barY - 14} x2={barX + 500} y2={barY + 14} stroke="#e2e8f0" strokeWidth={line * 2} />
-        <text x={barX + 250} y={barY - 26} textAnchor="middle" fontSize={size / 50} fill="#e2e8f0">
+        <rect x={barX - 20} y={barY - size / 20} width={540} height={size / 20 + 28} fill="#0d0814" fillOpacity="0.78" />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <rect key={i} x={barX + i * 100} y={barY - 10} width={100} height={20} fill={i % 2 ? "#ffd23f" : "#f5e6c8"} stroke="#0d0814" strokeWidth={line * 2} />
+        ))}
+        <text x={barX + 250} y={barY - 20} textAnchor="middle" fontSize={size / 40} fill="#f5e6c8" fontFamily='"Press Start 2P", monospace'>
           500 m
         </text>
       </g>
 
-      {/* Habitat marker with a slow pulse */}
+      {/* Habitat: a blinking block with a dark outline */}
       <g pointerEvents="none">
-        <circle cx={hx} cy={hy} r={cell * 0.6} fill="none" stroke="#ffffff" strokeWidth={cell / 8}>
-          <animate attributeName="r" from={cell * 0.6} to={cell * 2.4} dur="1.8s" repeatCount="indefinite" />
-          <animate attributeName="opacity" from="0.8" to="0" dur="1.8s" repeatCount="indefinite" />
-        </circle>
-        <circle cx={hx} cy={hy} r={cell * 0.7} fill="#ffffff" />
-        <circle cx={hx} cy={hy} r={cell * 0.4} fill="#ea580c" />
+        <rect x={hx - px * 1.1} y={hy - px * 1.1} width={px * 2.2} height={px * 2.2} fill="#0d0814" />
+        <rect x={hx - px * 0.8} y={hy - px * 0.8} width={px * 1.6} height={px * 1.6} fill="#f5e6c8" />
+        <rect x={hx - px * 0.4} y={hy - px * 0.4} width={px * 0.8} height={px * 0.8} fill="#ff7b3a" className="px-blink" />
       </g>
     </svg>
   );

@@ -24,16 +24,19 @@ const DEFAULTS = {
 const sharedId = new URLSearchParams(window.location.search).get("run");
 
 const LAYER_META = {
-  deterministic: { label: "Deterministic (coarse DEM)", swatch: "bg-blue-500" },
-  calibrated: { label: "Calibrated (at your threshold)", swatch: "bg-emerald-500" },
-  truth: { label: "Truth (1 m HiRISE DTM)", swatch: "border-2 border-amber-500" },
+  deterministic: { label: "Deterministic", swatch: "bg-aqua" },
+  calibrated: { label: "Calibrated", swatch: "bg-neon" },
+  truth: { label: "Truth 1 m", swatch: "border-2 border-dashed border-sun" },
 };
 
 function Card({ title, children, className = "" }) {
   return (
-    <section className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm ${className}`}>
+    <section className={`px-box p-4 ${className}`}>
       {title && (
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</h2>
+        <h2 className="px-title mb-4 flex items-center gap-2">
+          <i className="inline-block h-3 w-3 bg-mars" aria-hidden="true" />
+          {title}
+        </h2>
       )}
       {children}
     </section>
@@ -135,71 +138,61 @@ export default function App() {
     }
   }
 
-  const dot = api === "ok" ? "bg-emerald-400" : api === "checking…" ? "bg-slate-400" : "bg-amber-400";
+  const dot = api === "ok" ? "bg-neon" : api === "checking…" ? "bg-mute" : "bg-sun";
+  const synthetic = run?.demo || run?.tile?.label?.toUpperCase().includes("SYNTHETIC");
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800">
-      <header className="bg-slate-900 text-white">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-6 py-3">
-          <div className="flex items-center gap-3">
-            <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
-              <circle cx="14" cy="14" r="13" fill="none" stroke="#ea580c" strokeWidth="2" />
-              <circle cx="14" cy="14" r="7" fill="none" stroke="#fb923c" strokeWidth="2" />
-              <circle cx="14" cy="14" r="2.5" fill="#fff" />
-            </svg>
+    <div className="min-h-screen text-cream">
+      <header className="border-b-4 border-ink bg-panel shadow-[0_4px_0_0_#0d0814]">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <div className="flex items-center gap-4">
+            <img src="/favicon.svg" alt="" width="48" height="48" className="border-4 border-ink" style={{ imageRendering: "pixelated" }} />
             <div>
-              <h1 className="text-base font-semibold leading-tight">Walkback Under Uncertainty</h1>
-              <p className="text-xs text-slate-400">
+              <h1 className="font-pixel text-sm leading-snug text-sun sm:text-base">Walkback Under Uncertainty</h1>
+              <p className="mt-1 text-sm text-mute">
                 Terrain: {run?.tile?.label ?? "loading"}. Speed, cutoff and roughness are assumptions.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-200">
-            <span className={`h-2 w-2 rounded-full ${dot}`} />
+          <div className="px-inset flex items-center gap-3 px-3 py-2 font-pixel text-[9px] uppercase text-cream">
+            <span className={`inline-block h-3 w-3 ${dot} ${api === "ok" ? "" : "px-blink"}`} />
             API: {api}
           </div>
         </div>
       </header>
 
       {run?.demo && (
-        <div className="border-b border-amber-300 bg-amber-50">
-          <p className="mx-auto max-w-[1400px] px-6 py-2 text-sm text-amber-900">
-            <strong>Demo data (recorded).</strong> The backend is not connected, so sliders and habitat clicks
-            do not change this result. The terrain is synthetic and the numbers are placeholders.
+        <div className="border-b-4 border-ink bg-sun">
+          <p className="mx-auto max-w-[1400px] px-6 py-2 text-base text-ink">
+            <strong className="font-pixel text-[10px]">DEMO DATA (RECORDED).</strong> The backend is not connected,
+            so sliders and habitat clicks do not change this result. The terrain is synthetic and the numbers are
+            placeholders.
           </p>
         </div>
       )}
 
-      <main className="mx-auto grid max-w-[1400px] gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="space-y-6">
+      <main className="mx-auto grid max-w-[1400px] gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="space-y-8">
           <Card>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
               {Object.entries(LAYER_META).map(([key, m]) => (
                 <button
                   key={key}
                   type="button"
                   aria-pressed={layers[key]}
                   onClick={() => setLayers((l) => ({ ...l, [key]: !l[key] }))}
-                  className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition ${
-                    layers[key]
-                      ? "border-slate-300 bg-white text-slate-800 shadow-sm"
-                      : "border-slate-200 bg-slate-100 text-slate-400"
-                  }`}
+                  className="px-toggle"
                 >
-                  <i className={`inline-block h-3 w-3 rounded-sm ${m.swatch}`} />
+                  <i className={`inline-block h-3 w-3 ${m.swatch}`} />
                   {m.label}
                 </button>
               ))}
-              <span className="flex items-center gap-2 px-2 text-xs text-slate-500">
-                <i className="inline-block h-3 w-3 rounded-full border-2 border-slate-800 bg-white" />
+              <span className="flex items-center gap-2 px-1 text-sm text-mute">
+                <i className="inline-block h-3 w-3 bg-cream outline outline-2 outline-ink" />
                 Habitat (click the map to move it)
               </span>
               {canShare && (
-                <button
-                  type="button"
-                  onClick={copyLink}
-                  className="ml-auto rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
-                >
+                <button type="button" onClick={copyLink} className="px-btn ml-auto">
                   {copied ? "Link copied" : "Copy share link"}
                 </button>
               )}
@@ -210,16 +203,22 @@ export default function App() {
               {busy && (
                 <div
                   role="status"
-                  className="absolute right-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs text-slate-700 shadow"
+                  className="absolute right-3 top-3 border-4 border-ink bg-sun px-2 py-1 font-pixel text-[9px] uppercase text-ink"
                 >
                   Updating…
                 </div>
               )}
             </div>
 
-            <p className="mt-3 text-xs leading-relaxed text-slate-500">
-              <strong className="text-slate-700">Basemap:</strong>{" "}
-              {run?.tile?.label?.toUpperCase().includes("SYNTHETIC") || run?.demo ? (
+            {error && (
+              <p role="alert" className="mt-4 border-4 border-ink bg-blush p-3 text-base text-ink shadow-[4px_4px_0_0_#0d0814]">
+                Could not compute this run: {error}. Change an input and try again.
+              </p>
+            )}
+
+            <p className="mt-4 text-sm leading-snug text-mute">
+              <strong className="font-pixel text-[9px] font-normal uppercase text-sun">Basemap </strong>
+              {synthetic ? (
                 "synthetic development terrain, not Mars data. "
               ) : (
                 <>
@@ -229,64 +228,45 @@ export default function App() {
                 </>
               )}
               Explore the planet in{" "}
-              <a
-                href="https://trek.nasa.gov/mars/"
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-blue-700 underline"
-              >
+              <a href="https://trek.nasa.gov/mars/" target="_blank" rel="noreferrer">
                 NASA Mars Trek
               </a>
               . NASA does not endorse this website.
             </p>
 
-            {error && (
-              <p role="alert" className="mt-3 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800">
-                Could not compute this run: {error}. Change an input and try again.
-              </p>
-            )}
-
-               <p className="mt-3 text-xs text-slate-500">
+            <p className="mt-3 text-sm leading-snug text-mute">
               Sliders change assumptions, not the terrain.{" "}
               {run?.demo
                 ? "This is a recorded demo on synthetic terrain, not a validation against HiRISE. "
                 : "The headline result is the stored validation against the 1 m HiRISE DTM. "}
               This is a planning aid, not flight software.
             </p>
-
-
           </Card>
 
           <Card title="Result">
             <ResultsPanel run={run} busy={busy} />
-          </Card> 
-           <Card title="Assumptions">
+          </Card>
+          <Card title="Assumptions">
             <AssumptionsPanel assumptions={run?.assumptions} />
           </Card>
         </div>
 
-
-           
-        <aside className="space-y-6" >
+        <aside className="space-y-8">
           <Card title="Inputs">
             <ControlPanel params={params} onChange={setParam} />
           </Card>
           <Card title="Reliability">
             <ReliabilityChart bins={run?.calibration?.bins} />
           </Card>
-          
-
-
-
-
           <Card>
             <ExplainPanel onExplain={handleExplain} text={explanation} loading={explaining} disabled={!run} />
           </Card>
         </aside>
       </main>
+
+      <footer className="mx-auto max-w-[1400px] px-6 pb-10 text-center font-pixel text-[8px] uppercase leading-relaxed text-mute">
+        NASA Space Apps Challenge 2026 &middot; Interplanetary Survival Guide &middot; Planning aid, not flight software
+      </footer>
     </div>
   );
 }
-
-
-
