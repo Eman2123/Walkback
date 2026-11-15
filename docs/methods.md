@@ -7,3 +7,5 @@ Validation: reliability of predicted steep probability vs observed steepness on 
 All speeds, cutoffs and roughness levels are assumptions and are labelled. Minetti coefficients and suit factor are unverified until a source is confirmed.
 
 Tile: 2 km x 2 km window, 100 x 100 cells at 20 m (see docs/adr/002-map-and-crop.md).
+
+Known limit (2026-11-15): the registered planner slope is computed from 200 m blocks drawn on the 20 m grid, so it is zero inside blocks and large on block edges. The variant that computes slope on the 200 m block grid is in reports/planner_slope_variant.md. Only 0.2 % of the 20 m truth cells reach the 20 deg cutoff in this window, so a Brier score is compared with the no-skill value 0.0020 before it is called good.

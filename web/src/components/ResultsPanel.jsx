@@ -33,7 +33,14 @@ export default function ResultsPanel({ run, busy }) {
       )}
 
       <p className="text-sm text-mute">
-        Brier score <span className="text-cream">{s.brier}</span> (lower is better).{" "}
+        Brier score <span className="text-cream">{s.brier}</span> (lower is better
+        {s.brier_baseline != null && (
+          <>
+            ; a forecast with no skill scores <span className="text-cream">{s.brier_baseline}</span>
+            {s.brier > s.brier_baseline ? ", so this one is worse than no forecast" : ""}
+          </>
+        )}
+        ).{" "}
         {run.cached ? "From cache." : "Computed now."}
         {busy ? " Updating…" : ""}
       </p>
