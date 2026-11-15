@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { fmtPct } from "../lib/format.js";
 import { loadRouteFeasibility } from "../lib/api.js";
+import { pickRow } from "../lib/routeFeasibility.js";
 
 export default function RouteFeasibilityPanel({ params }) {
   const [data, setData] = useState(undefined); // undefined = loading, null = not available
@@ -17,9 +18,9 @@ export default function RouteFeasibilityPanel({ params }) {
   if (data === undefined) return <p className="text-base text-mute">Loading…</p>;
   if (!data) return <p className="text-base text-mute">Route feasibility report not available.</p>;
 
-  const match = data.rows.find((r) => r.roughness === params?.roughness && r.confidence === params?.confidence);
-  const row = match ?? data.rows.find((r) => r.roughness === data.headline.roughness && r.confidence === data.headline.confidence);
-  if (!row) return null;
+  const picked = pickRow(data, params);
+  if (!picked) return null;
+  const { row, exact: match } = picked;
 
   return (
     <div className="space-y-3">

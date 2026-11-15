@@ -21,3 +21,11 @@ About 90 spoken words, which is tight for 30 s. If it runs long, cut the 5-12 s 
 ## Check before recording
 - The 25 % to 45 % false reach is a steep-P grid200 result (README, Steep-P section) from the owner's tiles, which are not in this repo. Confirm it against your own reports before recording.
 - Route feasibility (88.8 %) is Jezero only, linear speed model, and its interval is optimistic because cells are correlated.
+
+## Recording checklist
+1. Open https://walkback-rlvz.vercel.app, hard refresh (Ctrl+Shift+R), wait until the badge says the API is reachable. If it falls back to the demo, say so or retry.
+2. Keep the default inputs (roughness 0.5, confidence 0.9). Do not move sliders while recording: the Route check card is a fixed report.
+3. Shots in order: map with the three regions, the Result card with the SHORTFALL banner, the Route check card (88.8 %), the Reliability chart.
+4. Read the numbers from the screen, not from memory. They must match: coverage 86.9 %, Brier 0.0157 against 0.002, route feasibility 88.8 %.
+5. Record at 1080p, 30 s. If it runs over, cut the 5-12 s line first.
+6. After uploading, put the link in README.md under "Demo links and latest changes".

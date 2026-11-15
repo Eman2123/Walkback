@@ -29,3 +29,12 @@ export function cellLatLon(meta, row, col, n = 100) {
     lat: pt.nw.lat + fy * (pt.sw.lat - pt.nw.lat),
   };
 }
+
+// A value this long is a sentence, not a number: the assumptions panel gives it a full-width card.
+export const isLongValue = (v) => String(v ?? "").length > 14;
+
+// Plain-language reading of coverage, e.g. "about 87 of every 100 truly reachable cells are covered (target: 95)".
+export const plainCoverage = (coverage, target = 0.95) =>
+  coverage == null || Number.isNaN(coverage)
+    ? ""
+    : `In plain words: about ${Math.round(coverage * 100)} of every 100 cells that are truly reachable are inside the calibrated region. The target was ${Math.round(target * 100)}.`;

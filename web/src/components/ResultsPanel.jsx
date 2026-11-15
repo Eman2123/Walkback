@@ -1,5 +1,5 @@
 // Owner: Urooj. Areas, coverage with its CI, Brier score, cache flag.
-import { fmtCI, fmtKm2, fmtPct, LABEL_CLASS } from "../lib/format.js";
+import { fmtCI, fmtKm2, fmtPct, LABEL_CLASS, plainCoverage } from "../lib/format.js";
 
 export default function ResultsPanel({ run, busy }) {
   if (!run) {
@@ -27,6 +27,7 @@ export default function ResultsPanel({ run, busy }) {
       ) : short ? (
         <p role="alert" className="border-4 border-ink bg-blush p-3 text-sm font-bold text-ink shadow-[4px_4px_0_0_#0d0814]">
           SHORTFALL: coverage is below 95 %. This is reported as a failure, not a pass.
+          <span className="mt-1 block font-normal">{plainCoverage(s.coverage)}</span>
         </p>
       ) : (
         <p className="text-sm text-mute">Coverage is 95 % or higher for this run.</p>

@@ -327,6 +327,7 @@ cd web
 npm install
 cp .env.example .env                 # set VITE_API_URL=http://localhost:8000
 npm run dev                          # http://localhost:5173
+npm test                             # 15 frontend tests (Node's built-in runner, no extra dependency)
 ```
 
 The app shows the map, controls, result, assumptions, reliability chart and a **Route check** card. The Route check card reads `web/public/route-feasibility.json`, a fixed report written by `scripts/route_feasibility.py` (Jezero, v2). It is not recomputed when you move the sliders: it shows the matching row if your roughness and confidence are one of the 9 reported, and the headline row otherwise.

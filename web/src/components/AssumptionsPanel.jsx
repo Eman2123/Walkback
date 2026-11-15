@@ -1,5 +1,5 @@
 // Owner: Urooj. Every assumption used in the run, with its label.
-import { LABEL_CLASS } from "../lib/format.js";
+import { isLongValue, LABEL_CLASS } from "../lib/format.js";
 
 // Friendly names for known keys. Unknown keys fall back to a readable version of the key.
 const INFO = {
@@ -21,9 +21,6 @@ const BORDER = {
   measured: "border-l-neon",
 };
 const ORDER = ["assumed", "derived", "measured"];
-
-// A value this long is a sentence, not a number: it gets a full-width card with wrapped text.
-const isLong = (v) => String(v ?? "").length > 14;
 
 const pretty = (name) => name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
@@ -49,7 +46,7 @@ export default function AssumptionsPanel({ assumptions }) {
         {sorted.map((a) => {
           const info = INFO[a.name];
           const border = BORDER[a.label] ?? "border-l-edge";
-          if (isLong(a.value)) {
+          if (isLongValue(a.value)) {
             return (
               <li key={a.name} className={`px-inset col-span-full min-w-0 !border-l-8 px-3 py-2 ${border}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
