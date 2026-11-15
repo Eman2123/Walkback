@@ -50,6 +50,7 @@ def build_messages(run: dict) -> list[dict]:
 
 def explain_run(run: dict, client: Any, model: str) -> str:
     """Return a plain-language explanation, or FALLBACK if anything is wrong."""
+    debug = __import__("os").environ.get("WALKBACK_EXPLAIN_DEBUG") == "1"
     try:
         resp = client.chat.completions.create(
             model=model,
@@ -58,9 +59,14 @@ def explain_run(run: dict, client: Any, model: str) -> str:
             max_tokens=1024,
         )
         text = (resp.choices[0].message.content or "").strip()
-    except Exception:
+    except Exception as exc:
+        if debug:
+            print("EXPLAIN EXCEPTION:", type(exc).__name__, str(exc)[:500])
         return FALLBACK
 
+    if debug:
+        print("EXPLAIN RAW TEXT:", repr(text))
+        print("EXPLAIN ALLOWED:", _all_numbers_allowed(text, _numbers_in(run)) if text else "n/a (empty)")
     if not text or not _all_numbers_allowed(text, _numbers_in(run)):
         return FALLBACK
     return text
