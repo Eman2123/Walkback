@@ -55,3 +55,35 @@ def test_mostly_steep_windows_are_filtered_out():
 def test_rejects_small_grid():
     with pytest.raises(ValueError):
         rank_windows(np.zeros((50, 50)))
+
+
+def test_planner_center_flags_block_edge_step():
+    from walkback.pipeline.steep_windows import planner_center_deg
+    flat = np.zeros((100, 100))
+    assert planner_center_deg(flat) == (0.0, 0.0)
+    # a 30 m step between the planner blocks that touch the habitat cell (row 49|50 is inside blocks 4 and 5)
+    z = np.zeros((100, 100))
+    z[50:, :] = 30.0
+    stair, g200 = planner_center_deg(z)
+    assert stair > 20.0          # 30 m over 40 m on the 20 m grid: the registered model calls this impassable
+    assert g200 < 20.0           # the same 30 m over 400 m on the 200 m grid is gentle
+
+
+def test_require_planner_center_drops_block_edge_windows():
+    z = _ramp_field((400, 400))
+    # steep band plus a block-edge step exactly under the habitat row of every candidate on the lattice
+    base = rank_windows(z, top_n=3, max_steep_share=0.95, require_walkable_center=False)
+    strict = rank_windows(z, top_n=3, max_steep_share=0.95, require_walkable_center=False,
+                          require_planner_center=True)
+    assert len(strict) <= len(base)
+    for w in strict:
+        assert w.planner_stair_deg < 20.0 and w.planner_g200_deg < 20.0
+
+
+def test_exclude_skips_overlapping_candidates():
+    z = _ramp_field((600, 600))
+    first = rank_windows(z, top_n=1, max_steep_share=0.95, require_walkable_center=False)[0]
+    again = rank_windows(z, top_n=3, max_steep_share=0.95, require_walkable_center=False,
+                         exclude=[(first.row, first.col)])
+    for w in again:
+        assert max(abs(w.row - first.row), abs(w.col - first.col)) >= 100

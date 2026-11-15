@@ -52,6 +52,10 @@ def main() -> None:
     ap.add_argument("--min-steep", type=float, default=0.02, help="min share of cells at or above the cutoff")
     ap.add_argument("--max-steep", type=float, default=0.6, help="max share; mostly-steep windows are uninformative")
     ap.add_argument("--allow-steep-center", action="store_true", help="do not require the habitat cell to be walkable")
+    ap.add_argument("--require-planner-center", action="store_true",
+                    help="habitat cell must also be below the cutoff in the planner's slope (staircase and grid200)")
+    ap.add_argument("--exclude", nargs="*", default=[], metavar="ROW,COL",
+                    help="1 m pixel offsets (row,col) of windows already analysed; overlapping candidates are skipped")
     ap.add_argument("--tile-prefix", default="steep")
     ap.add_argument("--site", default="HiRISE Jezero DTM", help="text used in the tile label")
     args = ap.parse_args()
@@ -61,16 +65,18 @@ def main() -> None:
     wins = rank_windows(
         z20, FINE_CELL_M, GRID, args.cutoff_deg, args.stride, args.top,
         args.min_steep, args.max_steep, require_walkable_center=not args.allow_steep_center,
+        require_planner_center=args.require_planner_center,
+        exclude=[(int(a.split(",")[0]) // K, int(a.split(",")[1]) // K) for a in args.exclude],
     )
     if not wins:
         raise SystemExit("no window met the filters; relax --min-steep/--max-steep or --stride")
 
     print(f"\nTop {len(wins)} windows (cutoff {args.cutoff_deg} deg, non-overlapping):\n")
-    print("| # | row-off (px) | col-off (px) | share >= cutoff | mean (deg) | p95 (deg) | habitat cell (deg) |")
-    print("|---|---|---|---|---|---|---|")
+    print("| # | row-off (px) | col-off (px) | share >= cutoff | mean (deg) | p95 (deg) | habitat cell (deg) | planner staircase (deg) | planner grid200 (deg) |")
+    print("|---|---|---|---|---|---|---|---|---|")
     for i, w in enumerate(wins, 1):
         print(f"| {i} | {w.row * K} | {w.col * K} | {w.steep_share * 100:.1f} % | {w.mean_deg:.1f} "
-              f"| {w.p95_deg:.1f} | {w.center_deg:.1f} |")
+              f"| {w.p95_deg:.1f} | {w.center_deg:.1f} | {w.planner_stair_deg:.1f} | {w.planner_g200_deg:.1f} |")
 
     print("\nBuild each tile:\n")
     for i, w in enumerate(wins, 1):
