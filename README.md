@@ -340,6 +340,8 @@ The repository is prepared for this: `app.py` at the root exposes the FastAPI ap
 4. **Frontend on Vercel**: Add New Project, import the same repository, set the root directory to `web`, and add `VITE_API_URL=https://YOUR-BACKEND.vercel.app`.
 5. Put the frontend URL into `CORS_ORIGINS` of the backend project and redeploy the backend.
 
+   **No-CORS option (used for the live demo).** `web/vercel.json` forwards `/api/*` from the frontend to the backend, so the browser only talks to its own origin and no preflight request is made. To use it, do not set `VITE_API_URL` in the frontend project, and change the destination in `web/vercel.json` to your backend URL. `CORS_ORIGINS` is then not needed for the Vercel site, but keep it for any other origin that calls the API directly.
+
 **Other hosts**
 
 - Render's free web service also works with `render.yaml`, but the free plan sleeps after 15 minutes idle (about 1 minute to wake) and a card may be requested at sign-up. FastAPI Cloud (`fastapi deploy`) advertised a free hobby tier during its beta; confirm its current terms.
