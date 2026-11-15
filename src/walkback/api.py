@@ -8,13 +8,14 @@ import uuid
 from collections import defaultdict, deque
 from functools import lru_cache
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from .compute import compute_run
 from .explain import explain_run
 from .params import param_hash
+from .relief import relief_png
 from .store import STORE
 from .tiles import DEFAULT_TILE_DIR, DEV_TILE_ID, load_tile, synthetic_tile
 
@@ -104,6 +105,25 @@ def _get_tile(tile_id: str):
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "version": app.version}
+
+
+@lru_cache(maxsize=4)
+def _relief_for(tile_id: str) -> bytes:
+    tile = _get_tile(tile_id)
+    return relief_png(tile.coarse, tile.cell_m)
+
+
+@app.get("/api/tiles/{tile_id}/relief.png")
+def tile_relief(tile_id: str, request: Request) -> Response:
+    """Shaded relief of the coarse DEM, used as the map basemap."""
+    _limit(request)
+    if tile_id not in ALLOWED_TILES or (tile_id == DEV_TILE_ID and not _dev_mode()):
+        raise HTTPException(status_code=404, detail="unknown tile")
+    return Response(
+        content=_relief_for(tile_id),
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @app.post("/api/runs")

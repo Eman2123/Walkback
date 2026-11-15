@@ -22,6 +22,9 @@ async function loadDemo() {
   return { ...(await res.json()), demo: true };
 }
 
+// Shaded-relief basemap made by the backend from the real terrain tile.
+export const reliefUrl = (tileId) => `${API_BASE}/api/tiles/${encodeURIComponent(tileId)}/relief.png`;
+
 export const getHealth = () => request("/api/health");
 
 export const postRun = async (params) => {

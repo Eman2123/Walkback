@@ -123,3 +123,20 @@ def test_rate_limit_returns_429(client, monkeypatch):
     assert client.post("/api/runs", json=VALID).status_code == 200
     assert client.post("/api/runs", json={**VALID, "budget_s": 600}).status_code == 200
     assert client.post("/api/runs", json={**VALID, "budget_s": 700}).status_code == 429
+
+
+def test_relief_png_for_dev_tile(client):
+    r = client.get("/api/tiles/dev-synthetic-20m/relief.png")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/png"
+    assert r.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_relief_rejects_unknown_tile(client):
+    assert client.get("/api/tiles/not-a-tile/relief.png").status_code == 404
+
+
+def test_relief_hides_dev_tile_outside_dev_mode(monkeypatch):
+    monkeypatch.delenv("WALKBACK_ENV", raising=False)
+    c = TestClient(api.app)
+    assert c.get("/api/tiles/dev-synthetic-20m/relief.png").status_code == 404
