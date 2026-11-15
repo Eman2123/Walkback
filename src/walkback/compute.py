@@ -28,8 +28,58 @@ def speed_field(slope: np.ndarray, v_flat: float, cutoff_deg: float) -> np.ndarr
     return v
 
 
-def travel_time(speed: np.ndarray, hab: tuple[int, int], cell_m: float) -> np.ndarray:
-    """Seconds from the habitat to every cell. Infinity where unreachable."""
+KNIGHT_MOVES = [(1, 2), (2, 1), (1, -2), (2, -1), (-1, 2), (-2, 1), (-1, -2), (-2, -1)]
+NEIGHBOURS16 = NEIGHBOURS + KNIGHT_MOVES
+SOLVERS = {"dijkstra8": NEIGHBOURS, "dijkstra16": NEIGHBOURS16}
+SPEED_MODELS = ("linear", "minetti", "minetti_cap")
+DIRECTIONS = ("out", "back")
+MINETTI_MAX_GRADE = 0.45   # range of the treadmill data the polynomial was fitted to
+
+
+def minetti_cost(g):
+    """Metabolic cost of walking, J per kg per m, at grade g (rise over run). Minetti et al. 2002, J Appl Physiol
+    93:1039-1046, fitted between g = -0.45 and +0.45. g is clipped to that range."""
+    g = np.clip(g, -MINETTI_MAX_GRADE, MINETTI_MAX_GRADE)
+    return 280.5 * g**5 - 58.7 * g**4 - 76.8 * g**3 + 51.9 * g**2 + 19.6 * g + 2.5
+
+
+def minetti_factor(g):
+    """Direction factor f(g) = Cs(g) / C(g): the symmetric part of the cost over the cost in this direction.
+    f(0) = 1, f < 1 where this direction is costlier than the average of up and down, f > 1 where it is cheaper."""
+    return 0.5 * (minetti_cost(g) + minetti_cost(-g)) / minetti_cost(g)
+
+
+def edge_factors(elev: np.ndarray, cell_m: float, neighbours, direction: str = "out", cap: bool = False) -> dict:
+    """Per move, an array F with F[r, c] = direction factor for the edge between (r, c) and (r + dr, c + dc).
+
+    direction "out": the crew walks from (r, c) to the neighbour (travel time from the habitat).
+    direction "back": the crew walks from the neighbour to (r, c) (travel time to the habitat), so the grade is reversed.
+    cap=True is the "minetti_cap" model: f is limited to 1, so there are uphill penalties and no downhill speed-up.
+    Cells whose neighbour is outside the grid keep 1.0 (never used)."""
+    if direction not in DIRECTIONS:
+        raise ValueError(f"unknown direction: {direction}")
+    sign = 1.0 if direction == "out" else -1.0
+    n_r, n_c = elev.shape
+    out = {}
+    for dr, dc in neighbours:
+        h = cell_m * math.hypot(dr, dc)
+        F = np.ones(elev.shape)
+        r0, r1 = max(0, -dr), min(n_r, n_r - dr)
+        c0, c1 = max(0, -dc), min(n_c, n_c - dc)
+        g = sign * (elev[r0 + dr:r1 + dr, c0 + dc:c1 + dc] - elev[r0:r1, c0:c1]) / h
+        f = minetti_factor(g)
+        F[r0:r1, c0:c1] = np.minimum(f, 1.0) if cap else f
+        out[(dr, dc)] = F.tolist()
+    return out
+
+
+def travel_time(speed: np.ndarray, hab: tuple[int, int], cell_m: float, neighbours=NEIGHBOURS,
+                factors: dict | None = None) -> np.ndarray:
+    """Seconds from the habitat to every cell. Infinity where unreachable.
+
+    neighbours: NEIGHBOURS (8, registered) or NEIGHBOURS16 (adds knight moves; both cells a knight move passes beside
+    must be passable). factors: optional per-move direction factors from edge_factors(); None is the registered
+    symmetric speed."""
     n_r, n_c = speed.shape
     v = speed.tolist()
     T = [[math.inf] * n_c for _ in range(n_r)]
@@ -38,19 +88,31 @@ def travel_time(speed: np.ndarray, hab: tuple[int, int], cell_m: float) -> np.nd
         return np.array(T)
     T[r0][c0] = 0.0
     heap = [(0.0, r0, c0)]
-    diag = cell_m * math.sqrt(2)
+    moves = []
+    for dr, dc in neighbours:
+        step = cell_m * math.hypot(dr, dc)
+        if abs(dr) == 2:
+            mids = ((dr // 2, 0), (dr // 2, dc))
+        elif abs(dc) == 2:
+            mids = ((0, dc // 2), (dr, dc // 2))
+        else:
+            mids = ()
+        moves.append((dr, dc, step, mids, None if factors is None else factors[(dr, dc)]))
     while heap:
         d, r, c = heapq.heappop(heap)
         if d > T[r][c]:
             continue
-        for dr, dc in NEIGHBOURS:
+        for dr, dc, step, mids, fac in moves:
             nr, nc = r + dr, c + dc
             if not (0 <= nr < n_r and 0 <= nc < n_c):
                 continue
             if v[nr][nc] <= 0:          # impassable neighbour: never enter it
                 continue
+            if mids and (v[r + mids[0][0]][c + mids[0][1]] <= 0 or v[r + mids[1][0]][c + mids[1][1]] <= 0):
+                continue                # a knight move may not pass beside an impassable cell
             vavg = (v[r][c] + v[nr][nc]) / 2
-            step = diag if (dr and dc) else cell_m
+            if fac is not None:
+                vavg *= fac[r][c]
             nd = d + step / vavg
             if nd < T[nr][nc]:
                 T[nr][nc] = nd
@@ -148,6 +210,9 @@ def compute_run(
     planner_slope_mode: str = "staircase",
     roughness_mode: str = "multiplicative",
     hurst: float | None = None,
+    solver: str = "dijkstra8",
+    speed_model: str = "linear",
+    direction: str = "out",
     return_fields: bool = False,
 ) -> dict:
     """Run the walkback model.
@@ -160,10 +225,22 @@ def compute_run(
     roughness_mode="multiplicative" is the registered behaviour. "hurst" is the exploratory, opt-in variant of the
     "Extended validation" section of PREREGISTRATION.md: it needs planner_slope_mode="grid200" and an exponent H, it
     ignores params["roughness"], and H is an input measured elsewhere (in-sample if measured on this tile).
+    solver="dijkstra8" is the registered behaviour; "dijkstra16" adds knight moves. speed_model="linear" is the registered
+    behaviour; "minetti" multiplies the edge speed by a direction factor from the Minetti 2002 walking cost, and
+    "minetti_cap" limits that factor to 1 (no downhill speed-up).
+    direction="out" is the registered behaviour (time from the habitat); "back" is the time from each cell to the habitat.
+    All three are the opt-in variants of the "Solver and directional speed" section of PREREGISTRATION.md.
     return_fields=True adds the underlying arrays under "_fields" (not JSON serializable; for scripts only).
     """
     if roughness_mode not in ROUGHNESS_MODES:
         raise ValueError(f"unknown roughness mode: {roughness_mode}")
+    if solver not in SOLVERS:
+        raise ValueError(f"unknown solver: {solver}")
+    if speed_model not in SPEED_MODELS:
+        raise ValueError(f"unknown speed model: {speed_model}")
+    if direction not in DIRECTIONS:
+        raise ValueError(f"unknown direction: {direction}")
+    nb = SOLVERS[solver]
     sub = None
     if roughness_mode == "hurst":
         if planner_slope_mode != "grid200":
@@ -182,9 +259,15 @@ def compute_run(
     if slope_coarse[hab] >= cutoff or slope_fine[hab] >= cutoff:
         raise ValueError("habitat is impassable at coarse or fine resolution")
 
+    fac_plan = fac_truth = None
+    if speed_model in ("minetti", "minetti_cap"):
+        cap = speed_model == "minetti_cap"
+        fac_plan = edge_factors(tile.coarse, cell, nb, direction, cap)
+        fac_truth = edge_factors(tile.fine, cell, nb, direction, cap)
+
     speed_det = speed_field(slope_coarse, v_flat, cutoff)
-    det = travel_time(speed_det, hab, cell) <= budget
-    truth = travel_time(speed_field(slope_fine, v_flat, cutoff), hab, cell) <= budget
+    det = travel_time(speed_det, hab, cell, nb, fac_plan) <= budget
+    truth = travel_time(speed_field(slope_fine, v_flat, cutoff), hab, cell, nb, fac_truth) <= budget
 
     rng = np.random.default_rng(ENSEMBLE_SEED)
     reach = np.zeros(tile.coarse.shape)
@@ -201,7 +284,7 @@ def compute_run(
         speed_k = speed_field(sk, v_flat, cutoff)
         if pin_start:
             speed_k[hab] = speed_det[hab]   # the crew starts here, so the start cell is not re-rolled
-        reach += travel_time(speed_k, hab, cell) <= budget
+        reach += travel_time(speed_k, hab, cell, nb, fac_plan) <= budget
     p_reach = reach / ENSEMBLE_K
     p_steep = steep / ENSEMBLE_K
     cal = p_reach >= conf
@@ -260,6 +343,13 @@ def compute_run(
             "roughness_mode": "hurst", "hurst": hurst,
             "g200": round(sub["g200"], 5), "g20_pred": round(sub["g20_pred"], 5), "sigma": round(sub["sigma"], 5),
         }
+    if (solver, speed_model, direction) != ("dijkstra8", "linear", "out"):   # opt-in only, registered output unchanged
+        result.setdefault("variant", {}).update({"solver": solver, "speed_model": speed_model, "direction": direction})
+        if speed_model in ("minetti", "minetti_cap"):
+            how = "edge factor min(Cs/C, 1), no downhill speed-up" if speed_model == "minetti_cap" else "edge factor Cs(g)/C(g)"
+            result["assumptions"] += [
+                {"name": "directional_speed", "value": f"Minetti et al. 2002 walking cost, {how}", "label": "assumed (Earth treadmill, speed inverse to cost, no Mars gravity or suit)"},
+            ]
     if return_fields:
         result["_fields"] = {
             "p_reach": p_reach, "p_steep": p_steep, "cal": cal, "truth": truth, "det": det,
