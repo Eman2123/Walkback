@@ -8,6 +8,10 @@ Status: working prototype. The API computes runs on a real Jezero tile, stores t
 
 The pre-registered default setting is a **shortfall**: coverage of the 1 m truth is below the 95 % target (see reports/validation_report.md). That result is kept as registered. A post-hoc diagnostic (reports/start_cell_diagnostic.md) shows why the calibrated region is empty at that setting: the start cell is itself perturbed and blocked in 12.5 % of realizations. With the start cell kept passable the default gives 86.9 % coverage, still a shortfall. We report both, labelled, and we do not pick the best setting as the headline.
 
+### Planner slope finding
+
+The planner DEM is a staircase of 100 constant 200 m blocks, so slope computed on the 20 m grid is exactly 0 inside a block and large only on block edges. The registered model's Brier score (0.0157) is worse than the 0.0020 of a forecast that always says "never steep". Computing slope on the 200 m block grid instead (exploratory, registered before it was run) reaches that no-skill level with about 100 % coverage, but only 0.2 % of 20 m cells reach the 20 deg cutoff, so this window cannot tell a good planner from a poor one. Scale effect: the 95th percentile slope is 4.4 deg at 200 m and 10.3 deg at 20 m. Details: reports/planner_slope_variant.md. Next step: windows with steeper terrain, registered before analysis.
+
 ## Data
 
 Terrain: Mars 2020 TRN HiRISE DTM (USGS Astrogeology, from NASA HiRISE stereo images; DOI 10.5066/P9REJ9JN), a 2 km window of Jezero crater at 20 m, with the 1 m model as held-out truth. Sources and processing: docs/data-sources.md. NASA does not endorse this project.

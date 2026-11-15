@@ -12,6 +12,7 @@ import time
 import numpy as np
 
 from .calibrate import brier, coverage, reliability_bins
+from .pipeline.build import COARSE_CELL_M, FINE_CELL_M
 from .slope import slope_deg
 from .tiles import Tile
 
@@ -85,12 +86,39 @@ def wilson_ci(successes: int, n: int, z: float = 1.96) -> tuple[float | None, fl
     return max(0.0, centre - half), min(1.0, centre + half)
 
 
-def compute_run(tile: Tile, params: dict, pin_start: bool = False) -> dict:
+PLANNER_SLOPES = ("staircase", "grid200")
+
+
+def planner_slope(coarse: np.ndarray, cell_m: float, mode: str = "staircase") -> np.ndarray:
+    """Slope the planner uses, in degrees, on the 20 m grid.
+
+    "staircase" (registered, default): np.gradient on the 200 m blocks drawn on the 20 m grid. Inside a block the
+        slope is exactly 0 and the whole step lands on the block edge, so it is not the slope a 200 m model has.
+    "grid200" (exploratory variant): slope on the 10 x 10 grid of block means with 200 m spacing, each value
+        repeated over its 20 m cells.
+    """
+    if mode == "staircase":
+        return slope_deg(coarse, cell_m)
+    if mode != "grid200":
+        raise ValueError(f"unknown planner slope mode: {mode}")
+    k = int(round(COARSE_CELL_M / FINE_CELL_M))
+    n = coarse.shape[0]
+    if coarse.shape[0] != coarse.shape[1] or n % k:
+        raise ValueError("grid200 needs a square tile whose side is a whole number of 200 m blocks")
+    small = coarse[k // 2::k, k // 2::k]
+    if not np.allclose(np.repeat(np.repeat(small, k, axis=0), k, axis=1), coarse):
+        raise ValueError("grid200 needs a planner DEM made of constant 200 m blocks")
+    return np.repeat(np.repeat(slope_deg(small, cell_m * k), k, axis=0), k, axis=1)
+
+
+def compute_run(tile: Tile, params: dict, pin_start: bool = False, planner_slope_mode: str = "staircase") -> dict:
     """Run the walkback model.
 
     pin_start=False is the pre-registered behaviour and the default everywhere (API, report).
     pin_start=True keeps the habitat cell passable in every ensemble realization. It exists only for
     the post-hoc diagnostic in scripts/start_cell_diagnostic.py and must not replace the registered result.
+    planner_slope_mode="staircase" is the registered behaviour. "grid200" is the exploratory variant used only by
+    scripts/planner_slope_variant.py (see PREREGISTRATION.md).
     """
     t0 = time.perf_counter()
     cell = tile.cell_m
@@ -98,7 +126,7 @@ def compute_run(tile: Tile, params: dict, pin_start: bool = False) -> dict:
     budget, v_flat, cutoff = params["budget_s"], params["speed_mps"], params["cutoff_deg"]
     conf, rough = params["confidence"], params["roughness"]
 
-    slope_coarse = slope_deg(tile.coarse, cell)
+    slope_coarse = planner_slope(tile.coarse, cell, planner_slope_mode)
     slope_fine = slope_deg(tile.fine, cell)
     if slope_coarse[hab] >= cutoff or slope_fine[hab] >= cutoff:
         raise ValueError("habitat is impassable at coarse or fine resolution")
@@ -147,6 +175,8 @@ def compute_run(tile: Tile, params: dict, pin_start: bool = False) -> dict:
             "coverage": None if math.isnan(cov) else round(cov, 4),
             "coverage_ci": [lo, hi] if lo is not None else [None, None],
             "brier": round(b, 4),
+            "brier_baseline": round(float(obs_steep.mean()) * (1 - float(obs_steep.mean())), 4),
+            "false_reach": None if counts["calibrated"] == 0 else round(int((cal & ~truth).sum()) / counts["calibrated"], 4),
             "runtime_ms": runtime_ms,
         },
         "calibration": {

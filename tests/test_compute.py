@@ -74,3 +74,35 @@ def test_default_jezero_headline_is_empty_because_the_start_cell_is_rerolled():
     assert registered["counts"]["calibrated"] == 0
     assert pinned["counts"]["calibrated"] > 0
     assert pinned["coverage"] < 0.95
+
+
+def test_planner_slope_staircase_is_zero_inside_blocks_and_grid200_is_not():
+    """The registered planner slope is a staircase artifact; grid200 is the exploratory alternative."""
+    import pytest
+    from walkback.compute import planner_slope
+    from walkback.tiles import DEFAULT_TILE_DIR, load_tile
+
+    tile = load_tile("jezero-20m", DEFAULT_TILE_DIR)
+    if tile is None:
+        pytest.skip("real tile not built")
+    st = planner_slope(tile.coarse, tile.cell_m, "staircase")
+    g2 = planner_slope(tile.coarse, tile.cell_m, "grid200")
+    rows = (np.arange(100) % 10 >= 1) & (np.arange(100) % 10 <= 8)
+    interior = np.outer(rows, rows)
+    assert np.all(st[interior] == 0.0)
+    assert g2.min() > 0.0
+    # grid200 is constant inside each 200 m block
+    assert np.allclose(g2.reshape(10, 10, 10, 10).std(axis=(1, 3)), 0)
+
+
+def test_grid200_refuses_a_dem_that_is_not_made_of_blocks():
+    import pytest
+    from walkback.compute import planner_slope
+
+    with pytest.raises(ValueError):
+        planner_slope(np.random.default_rng(0).random((100, 100)), 20.0, "grid200")
+
+
+def test_stats_carry_false_reach_and_a_no_skill_brier():
+    stats = compute_run(synthetic_tile(), PARAMS)["stats"]
+    assert "false_reach" in stats and stats["brier_baseline"] >= 0
