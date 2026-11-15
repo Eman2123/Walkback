@@ -219,3 +219,22 @@ Change log (v2 and LOO)
 - Implemented 2026-11-15, after the registration above (commit 623a8bb on branch fix/science-priorities). compute_run_v2, the API switch (profile in the cache key), docs/mobility-assumptions.md, src/walkback/validation/loo.py and scripts/loo_calibration.py were added. The result hash of 45 combinations of the registered model (v1) was identical before and after (45 of 45); compute_run defaults, the reports and the headline in reports/validation_report.md are unchanged.
 - v2 on the Jezero tile at the default setting (roughness 0.5, confidence 0.9), through the API: calibrated area 0.395 km2, coverage 86.9 % (95 % CI 84.7 % to 88.8 %), false reach 7.3 %, Brier 0.0157 against the no-skill value 0.0020. Still a shortfall. These numbers equal the pinned row of reports/start_cell_diagnostic.md, as expected, and are not an out-of-sample result.
 - scripts/loo_calibration.py was run once only as a plumbing check on the Jezero tile plus two synthetic tiles. That output is NOT a result and was not saved; the real run needs the six steep tiles on the owner's computer and has not been done.
+
+## Route feasibility: does the planner's own route work on the truth? (exploratory, registered 2026-11-15 BEFORE it was implemented or run)
+
+Why: every result so far compares AREAS. A crew follows a ROUTE. A cell can be reachable in the truth by some route while the route the planner would give to that cell fails on the truth (it crosses a cell that is impassable at 20 m, or takes too long). The false-reach number does not show this, because the truth uses its own best route.
+
+Definition. For a planner (staircase or grid200 slope) the deterministic speed field (linear speed model, cutoff, flat-ground speed) is used for one 8-connected Dijkstra from the habitat, keeping the shortest-route tree. The planned route to a cell is its path in that tree (under the symmetric linear speed model the route home is the same path reversed, with the same time). Every route is then timed on the truth speed field (slopes of the 1 m model at 20 m) with the same edge-time rule as the solver: step length over the mean of the two cell speeds, infinite if a cell on the route is impassable in the truth. Times are summed along the tree, so every cell is evaluated once.
+
+Region sets: (1) the deterministic region (planned time within the budget); (2) the calibrated region of the v2 profile, for the 9 roughness x confidence combinations of the earlier sections (roughness 0.1, 0.3, 0.5; confidence 0.5, 0.7, 0.9). Fixed: habitat (50, 50), budget 900 s, speed 0.5 m/s (assumed), cutoff 20 deg (assumed), dijkstra8, linear speed, 16 realizations, seed 1234 (calibrated region only).
+
+Metrics per region and planner: number of cells; route failure = share of cells whose planned route takes more than the budget on the truth (a route through a truth-impassable cell counts as failed); route blocked = share of routes that enter a truth-impassable cell; false reach as defined before (the cell is not reachable on the truth by ANY route); median and 95th percentile of truth time over planned time for the routes that are finite. By construction route failure is at least false reach. Reported next to each other so the difference (routes that fail although another route would work) is visible.
+
+Tiles: every tile in data/processed (on the owner's computer 7). A planner that does not run on a tile (habitat impassable) is reported "not computed", with the reason. All rows are reported; no row, tile or planner is chosen; no result is promoted.
+
+API: POST /api/route returns the planned route (deterministic staircase field, v2 profile) to one clicked cell and its time on the truth, for display in the app. It is a companion to the area result, labelled as such, and is not part of any validated claim.
+
+Not claimed: that a route is safe or that a crew can walk it; anything about other terrain. Linear speed only: a direction-dependent (Minetti) model would need per-direction edge factors along the route and is not done. The truth shares the speed model, so this does not test the speed model (docs/mobility-assumptions.md). One terrain model; speed, cutoff and roughness are assumptions.
+
+Change log (route feasibility)
+- Registered 2026-11-15, before src/walkback/route.py, POST /api/route and scripts/run_route_feasibility.py were written. The steep tiles are on the owner's computer; the script can only be run on the Jezero tile here.
