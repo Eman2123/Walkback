@@ -300,6 +300,8 @@ cp .env.example .env                 # set VITE_API_URL=http://localhost:8000
 npm run dev                          # http://localhost:5173
 ```
 
+The app shows the map, controls, result, assumptions, reliability chart and a **Route check** card. The Route check card reads `web/public/route-feasibility.json`, a fixed report written by `scripts/route_feasibility.py` (Jezero, v2). It is not recomputed when you move the sliders: it shows the matching row if your roughness and confidence are one of the 9 reported, and the headline row otherwise.
+
 The tile `data/processed/jezero-20m.npz` is committed, so the API works straight after cloning. With `WALKBACK_ENV=dev` it also serves a synthetic tile (`dev-synthetic-20m`) for development; a production server rejects that tile id.
 
 **Optional: explanations.** Set `AIMLAPI_API_KEY` and `AIML_MODEL` (for example `anthropic/claude-haiku-5.5`). `python scripts/check_aiml.py` sends one short test message and prints `OK:` or the error.
@@ -311,6 +313,7 @@ pip install -r requirements-pipeline.txt
 python scripts/build_terrain.py --help      # build a 20 m tile from the 1 m DTM
 python scripts/run_validation.py            # extended validation
 python scripts/run_solver_directional.py    # solver and direction comparison
+PYTHONPATH=src python scripts/route_feasibility.py   # route feasibility, also rewrites web/public/route-feasibility.json
 python scripts/find_steep_windows.py --help # rank DTM windows by steepness
 ```
 

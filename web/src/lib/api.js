@@ -40,6 +40,17 @@ export async function loadBasemapMeta(tileId) {
   }
 }
 
+export async function loadRouteFeasibility() {
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}route-feasibility.json`);
+    if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) return null;
+    const d = await res.json();
+    return Array.isArray(d?.rows) && d?.headline ? d : null;
+  } catch {
+    return null;
+  }
+}
+
 export const getHealth = () => request("/api/health");
 
 export const postRun = async (params) => {

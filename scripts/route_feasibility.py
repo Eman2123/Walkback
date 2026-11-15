@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 from pathlib import Path
 
 from walkback.compute import compute_run_v2, speed_field
@@ -39,6 +40,7 @@ def main() -> None:
     ap.add_argument("--tile-id", default="jezero-20m")
     ap.add_argument("--out", type=Path, default=Path("reports/route_feasibility.md"))
     ap.add_argument("--csv", type=Path, default=Path("reports/route_feasibility.csv"))
+    ap.add_argument("--json", type=Path, default=Path("web/public/route-feasibility.json"))
     args = ap.parse_args()
     tile = load_tile(args.tile_id, args.tile_dir)
     if tile is None:
@@ -70,6 +72,13 @@ def main() -> None:
         w = csv.DictWriter(fh, fieldnames=FIELDS)
         w.writeheader()
         w.writerows(rows)
+
+    args.json.parent.mkdir(parents=True, exist_ok=True)
+    args.json.write_text(json.dumps({
+        "tile": tile.label, "profile": "v2", "budget_s": BASE["budget_s"], "speed_mps": BASE["speed_mps"],
+        "cutoff_deg": BASE["cutoff_deg"], "headline": {"roughness": HEADLINE[0], "confidence": HEADLINE[1]},
+        "rows": [r for r in rows if r["region"] == "calibrated"],
+    }, indent=1) + "\n")
 
     head = next(r for r in rows if (r["roughness"], r["confidence"]) == HEADLINE and r["region"] == "calibrated")
     lines = [
