@@ -292,7 +292,7 @@ The tile `data/processed/jezero-20m.npz` is committed, so the API works straight
 **Rebuild the terrain or the reports** (needs the geospatial libraries and the 5.3 GB DTM):
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-pipeline.txt
 python scripts/build_terrain.py --help      # build a 20 m tile from the 1 m DTM
 python scripts/run_validation.py            # extended validation
 python scripts/run_solver_directional.py    # solver and direction comparison
@@ -319,28 +319,32 @@ Never commit `.env`, keys or tokens.
 
 ## Deploy on free tiers
 
-The whole stack runs on free plans. The trade-offs below are from public pricing pages in November 2026; check each page before you rely on them.
+The whole stack can run on plans that need **no credit card**: Vercel for the frontend and the backend, Neon for the database. The facts below are from public documentation read in November 2026; check each page before you rely on them.
 
-| Part | Service | Free-tier facts to know |
+| Part | Service | What to know |
 |---|---|---|
-| Frontend | Vercel (Hobby) | Static Vite build. Set `VITE_API_URL` to the backend URL |
-| Backend | Render (Free web service) | 750 instance-hours a month, 512 MB RAM, **sleeps after 15 minutes idle (about 1 minute to wake)**. A 2026 comparison reports that no card is needed; confirm at sign-up |
-| Database | Neon (Free Postgres) | Keeps data when the backend sleeps; the in-memory fallback would lose share links |
-| Explainer | AIML API | Pay per token; set a spending cap on the key |
+| Frontend | Vercel (Hobby), project root `web` | Static Vite build. Set `VITE_API_URL` to the backend URL |
+| Backend | Vercel (Hobby), project root = repository root | FastAPI runs as a Vercel Function. Documented Hobby limits: 300 s maximum duration, 2 GB memory, 500 MB Python bundle. One run takes about 0.5 s and the installed dependencies are about 85 MB. Hobby is for personal, non-commercial use |
+| Database | Neon (Free Postgres) | **Required on Vercel.** Each function instance has its own memory, so without `DATABASE_URL` a run created on one instance cannot be found by `/explain` or a share link on another |
+| Explainer | AIML API | Pay per token. Set a spending cap on the key |
 
-`render.yaml` in the repo describes the backend (build `pip install -r requirements-api.txt`, start `uvicorn walkback.api:app --host 0.0.0.0 --port $PORT --proxy-headers`, health check `/api/health`). A `Dockerfile` and `docker-compose.yml` with a Caddy reverse proxy (`deploy/Caddyfile`) cover any other host.
+The repository is prepared for this: `app.py` at the root exposes the FastAPI app, `vercel.json` sets the function options, and `requirements.txt` lists only the API runtime dependencies (the terrain pipeline needs `requirements-pipeline.txt`).
 
 **Steps**
 
-1. Neon: create a project, copy the connection string, run the migrations once with `alembic upgrade head` (set `DATABASE_URL` first).
-2. Render: New, Web Service, pick this repo, choose the Free instance type, add the environment variables from the table above.
-3. Check `https://YOUR-SERVICE.onrender.com/api/health`.
-4. Vercel: import the repo, root directory `web`, add `VITE_API_URL`.
-5. Put the Vercel URL into `CORS_ORIGINS` on Render and redeploy.
+1. **Neon**: create a project, copy the connection string (`postgresql+psycopg://...?sslmode=require`), and run the migrations once from your computer: set `DATABASE_URL`, then `alembic upgrade head`.
+2. **Backend on Vercel**: Add New Project, import this repository, leave the root directory empty, framework preset FastAPI (or Other). Add the environment variables `DATABASE_URL`, `AIMLAPI_API_KEY`, `AIML_MODEL`, `CORS_ORIGINS` (put a placeholder for now) and leave `WALKBACK_ENV` unset.
+3. Open `https://YOUR-BACKEND.vercel.app/api/health`. It should return `{"status":"ok", ...}`.
+4. **Frontend on Vercel**: Add New Project, import the same repository, set the root directory to `web`, and add `VITE_API_URL=https://YOUR-BACKEND.vercel.app`.
+5. Put the frontend URL into `CORS_ORIGINS` of the backend project and redeploy the backend.
 
-**Other backend hosts.** FastAPI Cloud (`fastapi deploy`) advertised a free hobby tier in its beta; confirm its current terms and whether it installs `requirements-api.txt` rather than the heavy `requirements.txt` before relying on it. Google Cloud Run's always-free allowance and Koyeb's free instance both ask for a card.
+**Other hosts**
 
-Before a demo, open `/api/health` once to wake a sleeping free instance.
+- Render's free web service also works with `render.yaml`, but the free plan sleeps after 15 minutes idle (about 1 minute to wake) and a card may be requested at sign-up. FastAPI Cloud (`fastapi deploy`) advertised a free hobby tier during its beta; confirm its current terms.
+- Google Cloud Run and Koyeb ask for a card. Fly.io no longer has a free tier for new accounts.
+- A `Dockerfile` and `docker-compose.yml` with a Caddy reverse proxy (`deploy/Caddyfile`) cover any machine you control.
+
+**Demo without any hosting.** If no backend is reachable the app falls back to a recorded demo that is clearly labelled as synthetic. To show the real model from your own laptop, run the API locally and point the frontend at it.
 
 ## Data and sources
 
