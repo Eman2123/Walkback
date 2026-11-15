@@ -356,3 +356,28 @@ def compute_run(
             "obs_steep": obs_steep, "slope_fine": slope_fine, "slope_coarse": slope_coarse,
         }
     return result
+
+
+PROFILE_V2 = "v2"
+
+
+def compute_run_v2(tile: Tile, params: dict, **kwargs) -> dict:
+    """Model profile v2 (PREREGISTRATION.md, "Model profile v2"): the registered model with two changes.
+
+    pin_start=True: the habitat cell is not re-rolled in the ensemble (the crew starts inside the habitat; in the
+    registered model that cell was blocked in 12.5 % of the realizations at roughness 0.5, which emptied the calibrated
+    region at confidence 0.9). direction="back": the time TO the habitat, the "walkback" question (equal to the time
+    from it under the symmetric linear speed model). Everything else is as registered. compute_run keeps the registered
+    defaults, so v1 stays reproducible. Other keyword arguments (planner_slope_mode, solver, ...) pass through.
+    """
+    for forbidden in ("pin_start", "direction"):
+        if forbidden in kwargs:
+            raise TypeError(f"{forbidden} is fixed by the v2 profile")
+    result = compute_run(tile, params, pin_start=True, direction="back", **kwargs)
+    result.setdefault("variant", {}).update({"profile": PROFILE_V2, "pin_start": True, "direction": "back"})
+    result["assumptions"] += [
+        {"name": "start_cell", "value": "the habitat cell stays passable in every realization (the crew starts inside it)", "label": "assumed"},
+        {"name": "return_direction", "value": "time to the habitat; equal to the time from it under the symmetric linear speed model", "label": "assumed"},
+        {"name": "mobility_not_modelled", "value": "Mars gravity, suit and load, rocks, sand, boot slip, rest and fatigue are not modelled; speed falls linearly with slope to zero at the cutoff", "label": "assumed"},
+    ]
+    return result

@@ -115,4 +115,4 @@ Use "consistent with" and "estimated". Do not write "safe", "guaranteed" or "con
 
 ## Team
 
-Eman (lead, science and validation), Shela (backend), Urooj (frontend).
+Eman (lead, science and validation), Shela (backend), Urooj (frontend).- scripts/loo_calibration.py: leave-one-window-out calibration (v2 profile); needs at least 3 tiles in data/processed; writes reports/loo_calibration.md and .csv. Registered in PREREGISTRATION.md before it was written.

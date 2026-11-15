@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-from .compute import compute_run
+from .compute import PROFILE_V2, compute_run_v2
 from .explain import FALLBACK, explain_run
 from .params import param_hash
 from .relief import relief_png
@@ -156,7 +156,7 @@ def create_run(req: RunRequest, request: Request) -> dict:
     _limit(request)
     params = req.model_dump()
     tile_id = params.pop("tile_id")
-    key = param_hash(tile_id, params)
+    key = param_hash(tile_id, {**params, "profile": PROFILE_V2})   # profile in the key: a v1 run is never served as v2
 
     cached = STORE.get_by_hash(key)
     if cached is not None:
@@ -164,7 +164,7 @@ def create_run(req: RunRequest, request: Request) -> dict:
 
     tile = _get_tile(tile_id)
     try:
-        result = compute_run(tile, dict(params))
+        result = compute_run_v2(tile, dict(params))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
