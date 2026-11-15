@@ -59,6 +59,8 @@ def explain_run(run: dict, client: Any, model: str) -> str:
             max_tokens=1024,
         )
         text = (resp.choices[0].message.content or "").strip()
+        if debug:
+            print("EXPLAIN RESP:", resp.model_dump_json()[:1500])
     except Exception as exc:
         if debug:
             print("EXPLAIN EXCEPTION:", type(exc).__name__, str(exc)[:500])
