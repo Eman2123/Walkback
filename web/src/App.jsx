@@ -99,9 +99,29 @@ export default function App() {
     loadBasemapMeta(TILE_ID).then(setBasemapMeta);
   }, []);
 
+  // Health check. If the API was asleep (cold start) the first check can fail, so ask again every 15 s until it answers.
   useEffect(() => {
-    getHealth().then((j) => setApi(j.status)).catch(() => setApi("unreachable"));
+    let alive = true;
+    let timer;
+    const check = () =>
+      getHealth()
+        .then((j) => alive && setApi(j.status))
+        .catch(() => {
+          if (!alive) return;
+          setApi("unreachable");
+          timer = setTimeout(check, 15000);
+        });
+    check();
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, []);
+
+  // A real (not recorded) result proves the API answers, whatever the first health check said.
+  useEffect(() => {
+    if (run && !run.demo && run.run_id) setApi("ok");
+  }, [run?.run_id, run?.demo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Open a shared run: load the stored result and show its inputs.
   useEffect(() => {
