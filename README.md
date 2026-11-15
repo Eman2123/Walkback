@@ -53,6 +53,14 @@ Frontend:
 
     cd web && npm install && npm run dev
 
+Real Mars basemap (optional, run once with the DTM, then commit the two files it writes):
+
+    PYTHONPATH=src python scripts/build_basemap.py --dtm path/to/dtm.tif \
+        --ortho /vsicurl/https://planetarymaps.usgs.gov/mosaic/mars2020_trn/HiRISE/JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first.tif \
+        --row-off 9744 --col-off 9700
+
+This crops the 25 cm HiRISE orthophoto (DOI 10.5066/P9QJDP48) to the DTM window and writes web/public/basemap-jezero-20m.jpg and .json. Without them the map shows the shaded relief. See docs/adr/004-real-imagery-basemap.md.
+
 Environment variables (see .env.example and web/.env.example): DATABASE_URL, CORS_ORIGINS, AIMLAPI_API_KEY, VITE_API_URL.
 
 ## Where to start

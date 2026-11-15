@@ -25,6 +25,21 @@ async function loadDemo() {
 // Shaded-relief basemap made by the backend from the real terrain tile.
 export const reliefUrl = (tileId) => `${API_BASE}/api/tiles/${encodeURIComponent(tileId)}/relief.png`;
 
+// Real HiRISE orthophoto of the analysis window, written by scripts/build_basemap.py into public/.
+// It is optional: when it is missing the map falls back to the shaded relief.
+export const basemapUrl = (tileId) => `${import.meta.env.BASE_URL}basemap-${encodeURIComponent(tileId)}.jpg`;
+
+export async function loadBasemapMeta(tileId) {
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}basemap-${encodeURIComponent(tileId)}.json`);
+    if (!res.ok || !(res.headers.get("content-type") ?? "").includes("json")) return null;
+    const meta = await res.json();
+    return meta?.points?.centre ? meta : null;
+  } catch {
+    return null;
+  }
+}
+
 export const getHealth = () => request("/api/health");
 
 export const postRun = async (params) => {

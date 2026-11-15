@@ -10,3 +10,22 @@ export const LABEL_CLASS = {
   derived: "bg-aqua",
   assumed: "bg-blush",
 };
+
+// Planetocentric degrees, 5 decimals is about 0.6 m on Mars.
+export const fmtLatLon = (lat, lon) =>
+  lat == null || lon == null
+    ? "n/a"
+    : `${Math.abs(lat).toFixed(5)}\u00b0${lat >= 0 ? "N" : "S"}, ${Math.abs(lon).toFixed(5)}\u00b0${lon >= 0 ? "E" : "W"}`;
+
+// Lon/lat of the centre of a grid cell. The basemap is an equirectangular crop, so lon and lat are
+// linear in the position inside the window. Returns null when no georeference file is available.
+export function cellLatLon(meta, row, col, n = 100) {
+  const pt = meta?.points;
+  if (!pt?.nw || !pt.ne || !pt.sw) return null;
+  const fx = (col + 0.5) / n;
+  const fy = (row + 0.5) / n;
+  return {
+    lon: pt.nw.lon + fx * (pt.ne.lon - pt.nw.lon),
+    lat: pt.nw.lat + fy * (pt.sw.lat - pt.nw.lat),
+  };
+}

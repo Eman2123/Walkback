@@ -1,6 +1,6 @@
 # ADR 002: Map library and crop size
 
-Status: accepted (2026-11-14, Eman).
+Status: accepted (2026-11-14, Eman). Points 3 and 4 are amended by ADR 004 (real HiRISE basemap).
 
 ## Context
 - The earlier plans said "5 x 5 km crop". The code uses a 100 x 100 grid at 20 m, which is 2 km x 2 km. The 2 km size is the one the code and the API use.
