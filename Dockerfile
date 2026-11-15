@@ -16,4 +16,7 @@ RUN useradd --create-home --uid 10001 appuser
 USER appuser
 
 EXPOSE 8000
-CMD ["sh", "-c", "uvicorn walkback.api:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --proxy-headers"]
+# One worker unless WEB_CONCURRENCY is set. More than one needs DATABASE_URL: the in-memory run store and the rate
+# limiter are per worker. Behind a proxy set FORWARDED_ALLOW_IPS (see docker-compose.yml), or every user shares one
+# rate-limit bucket.
+CMD ["sh", "-c", "uvicorn walkback.api:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]

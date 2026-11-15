@@ -13,6 +13,8 @@ services:
         value: src
       - key: WALKBACK_TILE_DIR
         value: data/processed
+      - key: FORWARDED_ALLOW_IPS
+        value: "*"   # Render's proxy sets X-Forwarded-For; without this the rate limit is shared by all users
       - key: CORS_ORIGINS
         sync: false
       - key: DATABASE_URL

@@ -140,3 +140,69 @@ def test_relief_hides_dev_tile_outside_dev_mode(monkeypatch):
     monkeypatch.delenv("WALKBACK_ENV", raising=False)
     c = TestClient(api.app)
     assert c.get("/api/tiles/dev-synthetic-20m/relief.png").status_code == 404
+
+
+def test_removed_tile_is_rejected(client):
+    assert client.post("/api/runs", json={**VALID, "tile_id": "jezero-200m"}).status_code == 422
+    assert client.get("/api/tiles/jezero-200m/relief.png").status_code == 404
+
+
+def _fake_openai(monkeypatch):
+    import sys
+    import types
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            pass
+
+    mod = types.ModuleType("openai")
+    mod.OpenAI = FakeOpenAI
+    monkeypatch.setitem(sys.modules, "openai", mod)
+
+
+def test_explanation_is_cached_per_run(client, monkeypatch):
+    monkeypatch.setenv("AIMLAPI_API_KEY", "k")
+    monkeypatch.setenv("AIML_MODEL", "m")
+    monkeypatch.setattr(api, "_EXPLAIN_CACHE", api.OrderedDict())
+    _fake_openai(monkeypatch)
+    calls = []
+    monkeypatch.setattr(api, "explain_run", lambda s, c, m: calls.append(1) or "Consistent with the run.")
+    run_id = client.post("/api/runs", json=VALID).json()["run_id"]
+    first = client.post(f"/api/runs/{run_id}/explain").json()["text"]
+    second = client.post(f"/api/runs/{run_id}/explain").json()["text"]
+    assert first == second and len(calls) == 1
+
+
+def test_failed_explanation_is_not_cached(client, monkeypatch):
+    monkeypatch.setenv("AIMLAPI_API_KEY", "k")
+    monkeypatch.setenv("AIML_MODEL", "m")
+    monkeypatch.setattr(api, "_EXPLAIN_CACHE", api.OrderedDict())
+    _fake_openai(monkeypatch)
+    calls = []
+    monkeypatch.setattr(api, "explain_run", lambda s, c, m: calls.append(1) or api.FALLBACK)
+    run_id = client.post("/api/runs", json=VALID).json()["run_id"]
+    client.post(f"/api/runs/{run_id}/explain")
+    client.post(f"/api/runs/{run_id}/explain")
+    assert len(calls) == 2
+
+
+def test_cached_explanation_works_without_a_key(client, monkeypatch):
+    monkeypatch.delenv("AIMLAPI_API_KEY", raising=False)
+    run_id = client.post("/api/runs", json=VALID).json()["run_id"]
+    monkeypatch.setattr(api, "_EXPLAIN_CACHE", api.OrderedDict({run_id: "Cached text."}))
+    assert client.post(f"/api/runs/{run_id}/explain").json() == {"text": "Cached text."}
+
+
+def test_warning_when_several_workers_share_no_database(monkeypatch, caplog):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("WEB_CONCURRENCY", "2")
+    with caplog.at_level("WARNING", logger="walkback"):
+        assert api.warn_if_unsafe_deployment() is True
+    assert "DATABASE_URL" in caplog.text
+    monkeypatch.setenv("WEB_CONCURRENCY", "1")
+    assert api.warn_if_unsafe_deployment() is False
+    monkeypatch.setenv("WEB_CONCURRENCY", "4")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    assert api.warn_if_unsafe_deployment() is False
+    monkeypatch.setenv("WEB_CONCURRENCY", "not-a-number")
+    assert api.warn_if_unsafe_deployment() is False

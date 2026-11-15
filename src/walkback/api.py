@@ -1,11 +1,12 @@
 """FastAPI service for Walkback. Input is untrusted: every field is range-checked here."""
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
 import uuid
-from collections import defaultdict, deque
+from collections import OrderedDict, defaultdict, deque
 from functools import lru_cache
 
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -13,16 +14,37 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
 from .compute import compute_run
-from .explain import explain_run
+from .explain import FALLBACK, explain_run
 from .params import param_hash
 from .relief import relief_png
 from .store import STORE
 from .tiles import DEFAULT_TILE_DIR, DEV_TILE_ID, load_tile, synthetic_tile
 
-ALLOWED_TILES = frozenset({"jezero-20m", "jezero-200m", DEV_TILE_ID})
+ALLOWED_TILES = frozenset({"jezero-20m", DEV_TILE_ID})
 GRID_SIZE = 100
 
+log = logging.getLogger("walkback")
+
 app = FastAPI(title="Walkback API", version="0.3.0", docs_url=None, redoc_url=None, openapi_url=None)
+
+
+def warn_if_unsafe_deployment() -> bool:
+    """Log a warning (and return True) when several workers would each keep their own in-memory run store."""
+    try:
+        workers = int(os.environ.get("WEB_CONCURRENCY", "1"))
+    except ValueError:
+        workers = 1
+    if workers > 1 and not os.environ.get("DATABASE_URL"):
+        log.warning(
+            "WEB_CONCURRENCY=%s without DATABASE_URL: each worker has its own in-memory run store and rate limiter, "
+            "so GET /api/runs/{id} can return 404 for a run another worker created. Set DATABASE_URL or use one worker.",
+            workers,
+        )
+        return True
+    return False
+
+
+warn_if_unsafe_deployment()
 
 _origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
@@ -156,6 +178,11 @@ def get_run(run_id: str) -> dict:
     return {"run_id": run_id, "cached": True, **stored["result"]}
 
 
+_EXPLAIN_CACHE: OrderedDict[str, str] = OrderedDict()   # run_id -> explanation; saves model tokens on repeat clicks
+_EXPLAIN_LOCK = threading.Lock()
+_EXPLAIN_MAX = 256
+
+
 @app.post("/api/runs/{run_id}/explain")
 def explain(run_id: str, request: Request) -> dict:
     """Plain-language explanation via AIML API. Sends a summary of the run, never the map geometry."""
@@ -163,6 +190,12 @@ def explain(run_id: str, request: Request) -> dict:
     stored = STORE.get(run_id)
     if stored is None:
         raise HTTPException(status_code=404, detail="run not found")
+
+    with _EXPLAIN_LOCK:
+        hit = _EXPLAIN_CACHE.get(run_id)
+        if hit is not None:
+            _EXPLAIN_CACHE.move_to_end(run_id)
+            return {"text": hit}
 
     api_key = os.environ.get("AIMLAPI_API_KEY")
     model = os.environ.get("AIML_MODEL")
@@ -173,4 +206,10 @@ def explain(run_id: str, request: Request) -> dict:
 
     client = OpenAI(api_key=api_key, base_url=os.environ.get("AIML_BASE_URL", "https://api.aimlapi.com/v1"))
     summary = {k: v for k, v in stored["result"].items() if k != "regions"}
-    return {"text": explain_run(summary, client, model)}
+    text = explain_run(summary, client, model)
+    if text != FALLBACK:                      # a failed call is never cached, so a retry can succeed
+        with _EXPLAIN_LOCK:
+            _EXPLAIN_CACHE[run_id] = text
+            while len(_EXPLAIN_CACHE) > _EXPLAIN_MAX:
+                _EXPLAIN_CACHE.popitem(last=False)
+    return {"text": text}
