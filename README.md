@@ -67,6 +67,8 @@ Walkback answers two things:
 
 <sub>Real Jezero tile, default setting. The blue region is the deterministic walkback area; the dashed yellow outline is the 1 m truth. The calibrated (green) region is empty at this setting, which is the registered shortfall described below. The blocky relief is the 200 m planner terrain, not an image of Mars.</sub>
 
+**Sound (optional).** The header has a *Sound* switch, **off by default**. When on, the app plays short 8-bit beeps generated in the browser (no audio files): clicks, slider ticks, a descending tone when a result misses the 95 % target (so a shortfall never sounds like a win), and a buzz on errors. The *Listen* button under the explanation reads it aloud with the browser's built-in voice (English only; voices differ by browser). Turning sound on also reads each new explanation aloud. The setting is remembered per browser.
+
 ## Headline result: a shortfall, reported as one
 
 The default setting was registered before the result was known. It **does not meet the 95 % coverage target**, and that result is kept as registered.
