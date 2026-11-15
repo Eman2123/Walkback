@@ -85,7 +85,13 @@ def wilson_ci(successes: int, n: int, z: float = 1.96) -> tuple[float | None, fl
     return max(0.0, centre - half), min(1.0, centre + half)
 
 
-def compute_run(tile: Tile, params: dict) -> dict:
+def compute_run(tile: Tile, params: dict, pin_start: bool = False) -> dict:
+    """Run the walkback model.
+
+    pin_start=False is the pre-registered behaviour and the default everywhere (API, report).
+    pin_start=True keeps the habitat cell passable in every ensemble realization. It exists only for
+    the post-hoc diagnostic in scripts/start_cell_diagnostic.py and must not replace the registered result.
+    """
     t0 = time.perf_counter()
     cell = tile.cell_m
     hab = (params["habitat_row"], params["habitat_col"])
@@ -97,7 +103,8 @@ def compute_run(tile: Tile, params: dict) -> dict:
     if slope_coarse[hab] >= cutoff or slope_fine[hab] >= cutoff:
         raise ValueError("habitat is impassable at coarse or fine resolution")
 
-    det = travel_time(speed_field(slope_coarse, v_flat, cutoff), hab, cell) <= budget
+    speed_det = speed_field(slope_coarse, v_flat, cutoff)
+    det = travel_time(speed_det, hab, cell) <= budget
     truth = travel_time(speed_field(slope_fine, v_flat, cutoff), hab, cell) <= budget
 
     rng = np.random.default_rng(ENSEMBLE_SEED)
@@ -107,7 +114,10 @@ def compute_run(tile: Tile, params: dict) -> dict:
         factor = np.exp(rough * rng.standard_normal(tile.coarse.shape))
         sk = slope_coarse * factor
         steep += sk >= cutoff
-        reach += travel_time(speed_field(sk, v_flat, cutoff), hab, cell) <= budget
+        speed_k = speed_field(sk, v_flat, cutoff)
+        if pin_start:
+            speed_k[hab] = speed_det[hab]   # the crew starts here, so the start cell is not re-rolled
+        reach += travel_time(speed_k, hab, cell) <= budget
     p_reach = reach / ENSEMBLE_K
     p_steep = steep / ENSEMBLE_K
     cal = p_reach >= conf

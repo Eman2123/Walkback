@@ -43,3 +43,34 @@ def test_compute_run_is_deterministic_and_reports_labels():
 def test_synthetic_tile_shapes():
     t = synthetic_tile()
     assert t.coarse.shape == (100, 100) and t.fine.shape == (100, 100)
+
+
+def test_pin_start_is_off_by_default_so_registered_result_is_unchanged():
+    tile = synthetic_tile()
+    default = compute_run(tile, PARAMS)
+    explicit = compute_run(tile, PARAMS, pin_start=False)
+    assert default["stats"]["counts"] == explicit["stats"]["counts"]
+    assert default["stats"]["coverage"] == explicit["stats"]["coverage"]
+    assert default["stats"]["brier"] == explicit["stats"]["brier"]
+
+
+def test_default_jezero_headline_is_empty_because_the_start_cell_is_rerolled():
+    """Regression test for the post-hoc finding in reports/start_cell_diagnostic.md.
+
+    Registered model: the habitat cell is blocked in 2 of 16 realizations (12.5 %), above 1 - 0.9,
+    so the calibrated region is empty. Pinning the start cell gives a non-empty region that still
+    misses the 95 % target (a shortfall, reported as such).
+    """
+    import pytest
+    from walkback.tiles import DEFAULT_TILE_DIR, load_tile
+
+    tile = load_tile("jezero-20m", DEFAULT_TILE_DIR)
+    if tile is None:
+        pytest.skip("real tile not built")
+    p = {"habitat_row": 50, "habitat_col": 50, "budget_s": 900, "speed_mps": 0.5,
+         "cutoff_deg": 20.0, "confidence": 0.9, "roughness": 0.5}
+    registered = compute_run(tile, dict(p))["stats"]
+    pinned = compute_run(tile, dict(p), pin_start=True)["stats"]
+    assert registered["counts"]["calibrated"] == 0
+    assert pinned["counts"]["calibrated"] > 0
+    assert pinned["coverage"] < 0.95

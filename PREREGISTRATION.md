@@ -28,3 +28,15 @@ Purpose: show how the calibrated result depends on the two unresolved-roughness 
 
 Change log (sensitivity section)
 - Registered 2026-11-15, before running scripts/sensitivity.py on the Jezero tile.
+
+## Post-hoc diagnostic of the default result (exploratory, logged after the result was known)
+
+The registered default (roughness 0.5, confidence 0.9) gave an empty calibrated region and 0.0 % coverage. This section records the explanation and what was and was not changed.
+
+- What was found: the roughness factor is also applied to the habitat cell. At the default setting the habitat cell reaches the slope cutoff in 2 of 16 realizations (12.5 %), which is more than 1 minus the confidence (10 %). In those realizations nothing is reachable, so no cell can reach the 0.9 threshold. The empty region comes from this, not from the terrain far from the habitat.
+- What was NOT changed: the model used for the headline, the default setting, and reports/validation_report.md. The registered result stays a SHORTFALL.
+- What was added: an optional switch (compute_run pin_start, default off) and scripts/start_cell_diagnostic.py, which writes reports/start_cell_diagnostic.md for the same 9 combinations as the sensitivity analysis. With the start cell kept passable, the default setting gives 86.9 % coverage. That is still below 95 %, and it is still reported as a shortfall.
+- Status of this table: post-hoc and exploratory. It explains the headline and does not replace it. Any future model change that fixes the start-cell behaviour needs its own registration before it is run.
+
+Change log (diagnostic section)
+- Added 2026-11-15, after the headline and sensitivity results were known. Reason: explain the empty default region.

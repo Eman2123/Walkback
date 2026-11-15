@@ -2,7 +2,15 @@
 
 For a habitat and an EVA time budget, show the area from which a crew can still walk home, and how confident that result is. The walkback region is predicted from a coarse DEM and validated against a 1 m HiRISE DTM of Jezero crater, degraded to the same coarse scale.
 
-Status: foundation. The API validates inputs and returns 501 for compute until the pipeline is connected. The frontend shows only the API status.
+Status: working prototype. The API computes runs on a real Jezero tile, stores them (share links), and an optional AIML explainer summarises a run. The frontend shows the map, results, reliability chart and assumptions. Nothing here is flight software.
+
+## Result and honesty
+
+The pre-registered default setting is a **shortfall**: coverage of the 1 m truth is below the 95 % target (see reports/validation_report.md). That result is kept as registered. A post-hoc diagnostic (reports/start_cell_diagnostic.md) shows why the calibrated region is empty at that setting: the start cell is itself perturbed and blocked in 12.5 % of realizations. With the start cell kept passable the default gives 86.9 % coverage, still a shortfall. We report both, labelled, and we do not pick the best setting as the headline.
+
+## Data
+
+Terrain: Mars 2020 TRN HiRISE DTM (USGS Astrogeology, from NASA HiRISE stereo images; DOI 10.5066/P9REJ9JN), a 2 km window of Jezero crater at 20 m, with the 1 m model as held-out truth. Sources and processing: docs/data-sources.md. NASA does not endorse this project.
 
 ## Repository layout
 
