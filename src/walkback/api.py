@@ -46,7 +46,10 @@ def warn_if_unsafe_deployment() -> bool:
 
 warn_if_unsafe_deployment()
 
-_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+_DEFAULT_ORIGINS = ["https://walkback-rlvz.vercel.app"]
+_origins = [o.strip().rstrip("/") for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+if not _origins:
+    _origins = _DEFAULT_ORIGINS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins,
