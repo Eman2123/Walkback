@@ -111,7 +111,45 @@ def planner_slope(coarse: np.ndarray, cell_m: float, mode: str = "staircase") ->
     return np.repeat(np.repeat(slope_deg(small, cell_m * k), k, axis=0), k, axis=1)
 
 
-def compute_run(tile: Tile, params: dict, pin_start: bool = False, planner_slope_mode: str = "staircase") -> dict:
+ROUGHNESS_MODES = ("multiplicative", "hurst")
+
+
+def hurst_subgrid(coarse: np.ndarray, cell_m: float, hurst: float) -> dict:
+    """Sub-grid gradient noise predicted from the 200 m model alone plus a scale exponent H.
+
+    The planner sees only the 200 m block means. G200 is the RMS gradient of that 10 x 10 grid. The scale law
+    G ~ L^(H - 1) predicts the RMS gradient at the 20 m cell size, G20 = G200 x 10^(1 - H). The part the 200 m model
+    cannot resolve is split evenly over the two gradient components:
+        sigma = sqrt(max(G20^2 - G200^2, 0) / 2).
+    Returns the 200 m gradient vector repeated over the 20 m cells (gx, gy, tangent units) and the numbers used.
+    The truth is never used. H is an input (measured elsewhere), see PREREGISTRATION.md.
+    """
+    if not math.isfinite(hurst):
+        raise ValueError("hurst exponent must be a finite number")
+    k = int(round(COARSE_CELL_M / FINE_CELL_M))
+    n = coarse.shape[0]
+    if coarse.shape[0] != coarse.shape[1] or n % k:
+        raise ValueError("hurst roughness needs a square tile whose side is a whole number of 200 m blocks")
+    small = coarse[k // 2::k, k // 2::k]
+    if not np.allclose(np.repeat(np.repeat(small, k, axis=0), k, axis=1), coarse):
+        raise ValueError("hurst roughness needs a planner DEM made of constant 200 m blocks")
+    dzdy, dzdx = np.gradient(small, cell_m * k)
+    g200 = float(np.sqrt(np.mean(dzdx ** 2 + dzdy ** 2)))
+    g20 = g200 * 10.0 ** (1.0 - hurst)
+    sigma = math.sqrt(max(g20 ** 2 - g200 ** 2, 0.0) / 2.0)
+    up = lambda a: np.repeat(np.repeat(a, k, axis=0), k, axis=1)  # noqa: E731
+    return {"gx": up(dzdx), "gy": up(dzdy), "sigma": sigma, "g200": g200, "g20_pred": g20}
+
+
+def compute_run(
+    tile: Tile,
+    params: dict,
+    pin_start: bool = False,
+    planner_slope_mode: str = "staircase",
+    roughness_mode: str = "multiplicative",
+    hurst: float | None = None,
+    return_fields: bool = False,
+) -> dict:
     """Run the walkback model.
 
     pin_start=False is the pre-registered behaviour and the default everywhere (API, report).
@@ -119,7 +157,20 @@ def compute_run(tile: Tile, params: dict, pin_start: bool = False, planner_slope
     the post-hoc diagnostic in scripts/start_cell_diagnostic.py and must not replace the registered result.
     planner_slope_mode="staircase" is the registered behaviour. "grid200" is the exploratory variant used only by
     scripts/planner_slope_variant.py (see PREREGISTRATION.md).
+    roughness_mode="multiplicative" is the registered behaviour. "hurst" is the exploratory, opt-in variant of the
+    "Extended validation" section of PREREGISTRATION.md: it needs planner_slope_mode="grid200" and an exponent H, it
+    ignores params["roughness"], and H is an input measured elsewhere (in-sample if measured on this tile).
+    return_fields=True adds the underlying arrays under "_fields" (not JSON serializable; for scripts only).
     """
+    if roughness_mode not in ROUGHNESS_MODES:
+        raise ValueError(f"unknown roughness mode: {roughness_mode}")
+    sub = None
+    if roughness_mode == "hurst":
+        if planner_slope_mode != "grid200":
+            raise ValueError("hurst roughness needs planner_slope_mode='grid200'")
+        if hurst is None:
+            raise ValueError("hurst roughness needs the exponent H")
+        sub = hurst_subgrid(tile.coarse, tile.cell_m, hurst)
     t0 = time.perf_counter()
     cell = tile.cell_m
     hab = (params["habitat_row"], params["habitat_col"])
@@ -139,8 +190,13 @@ def compute_run(tile: Tile, params: dict, pin_start: bool = False, planner_slope
     reach = np.zeros(tile.coarse.shape)
     steep = np.zeros(tile.coarse.shape)
     for _ in range(ENSEMBLE_K):
-        factor = np.exp(rough * rng.standard_normal(tile.coarse.shape))
-        sk = slope_coarse * factor
+        if sub is None:
+            factor = np.exp(rough * rng.standard_normal(tile.coarse.shape))
+            sk = slope_coarse * factor
+        else:
+            ex = sub["sigma"] * rng.standard_normal(tile.coarse.shape)
+            ey = sub["sigma"] * rng.standard_normal(tile.coarse.shape)
+            sk = np.degrees(np.arctan(np.hypot(sub["gx"] + ex, sub["gy"] + ey)))
         steep += sk >= cutoff
         speed_k = speed_field(sk, v_flat, cutoff)
         if pin_start:
@@ -161,7 +217,7 @@ def compute_run(tile: Tile, params: dict, pin_start: bool = False, planner_slope
     counts = {"deterministic": int(det.sum()), "calibrated": int(cal.sum()), "truth": n_truth}
     runtime_ms = int((time.perf_counter() - t0) * 1000)
 
-    return {
+    result = {
         "tile": {"id": tile.tile_id, "cell_m": cell, "label": tile.label},
         "params": params,
         "regions": {
@@ -195,3 +251,18 @@ def compute_run(tile: Tile, params: dict, pin_start: bool = False, planner_slope
             {"name": "ensemble_realizations", "value": str(ENSEMBLE_K), "label": "derived"},
         ],
     }
+    if sub is not None:   # only the opt-in variant adds keys, so the registered output is unchanged
+        result["assumptions"] = [a for a in result["assumptions"] if a["name"] != "unresolved_roughness"] + [
+            {"name": "hurst_exponent", "value": str(hurst), "label": "measured elsewhere (in-sample if on this tile)"},
+            {"name": "subgrid_gradient_sigma", "value": f"{sub['sigma']:.4f}", "label": "derived"},
+        ]
+        result["variant"] = {
+            "roughness_mode": "hurst", "hurst": hurst,
+            "g200": round(sub["g200"], 5), "g20_pred": round(sub["g20_pred"], 5), "sigma": round(sub["sigma"], 5),
+        }
+    if return_fields:
+        result["_fields"] = {
+            "p_reach": p_reach, "p_steep": p_steep, "cal": cal, "truth": truth, "det": det,
+            "obs_steep": obs_steep, "slope_fine": slope_fine, "slope_coarse": slope_coarse,
+        }
+    return result
