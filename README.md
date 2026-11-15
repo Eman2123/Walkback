@@ -26,18 +26,29 @@ Three steeper windows (steep-1, steep-2, steep-3) were registered before analysi
 
 Details and per-row numbers: PREREGISTRATION.md (change log).
 
+### Steep windows with a passable habitat cell (steep-P)
+
+Three further windows (steep-p-1 to steep-p-3, 5.5 % to 8.2 % of cells at or above the cutoff), selected by terrain only so that the habitat cell is passable in the planner. All 63 validation rows and 540 solver and direction rows are reported (reports/steep_p/). Estimated results:
+
+- The registered model runs on all three windows. Its Brier skill score against "never steep" is negative in all 27 rows (-2.47 to -0.73), and no row reaches 95 % coverage (best 92.8 %).
+- grid200 has the lower end of the wider interval at or above 95 % in 15 of 27 rows (steep-p-1: 8, steep-p-3: 7, steep-p-2: 0). In those 15 rows false reach is 42.5 % to 44.9 % (steep-p-1) and 25.3 % to 27.4 % (steep-p-3), the calibrated area is 1.3 to 1.8 times the truth area, and the Brier skill score is -0.059 to +0.117. That coverage comes from calling too much reachable, not from skill. The earlier grid200 skill on steep-1 to steep-3 (+0.19 to +0.46) is not reproduced on these windows.
+- hurst (out-of-sample H): Brier skill score is negative in all 9 rows, and no row reaches 95 %.
+- The direction assumption still moves the truth area by a factor of 0.65 to 2.6, and the 16-neighbour solver raises it by 5.5 % to 8.3 %.
+
+Details: PREREGISTRATION.md (change log of the steep-P section).
+
 ## Limitations
 
-What these results support: on this Jezero DTM, in these three steep windows, the registered planner either does not run or does worse than "never steep", and grid200 does not reach 95 % coverage either.
+What these results support: on this Jezero DTM, in six steep windows, the registered planner either does not run or does worse than "never steep" (Brier skill score), and no row of the registered planner reaches 95 % coverage. grid200 reaches 95 % coverage in some steep-P rows only with high false reach and about zero skill.
 
 What they do not support:
 
 - "The model is fine for steep terrain" (it is not, here).
-- Any statement about other parts of Mars. There are three windows, one DTM, and the windows were chosen by steepness.
-- Any use of the walkback region as a safety margin. Estimated false reach is high on at least one window, and no row reaches the coverage target.
+- Any statement about other parts of Mars. There are six windows, one DTM, and the windows were chosen by steepness.
+- Any use of the walkback region as a safety margin. In the steep-P grid200 rows whose lower end reaches 95 % coverage, estimated false reach is 25 % to 45 %; the registered planner reaches it in no row.
 - The speed model (Minetti variants, neighbour count) is an assumption. Results move by up to a factor of 3 in area depending on it.
 
-Open design question: the registered model fails on steep-1 and steep-2 because the habitat cell is impassable at 200 m. Fixing this (a window whose habitat cell is below the cutoff, or a different habitat-cell rule) needs a new registration and is not done yet.
+Resolved by selecting windows, not by changing the model: the registered model could not run on steep-1 and steep-2 because the habitat cell sits on a 200 m block edge of the planner. Windows whose habitat cell is passable in the planner were selected by terrain only (rule registered before the selection, see PREREGISTRATION.md) and are reported above as steep-P. The habitat-cell rule itself was not changed.
 
 ## Data
 
