@@ -55,7 +55,7 @@ def explain_run(run: dict, client: Any, model: str) -> str:
             model=model,
             messages=build_messages(run),
             temperature=0.2,
-            max_tokens=300,
+            max_tokens=1024,
         )
         text = (resp.choices[0].message.content or "").strip()
     except Exception:

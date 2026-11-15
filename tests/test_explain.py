@@ -37,4 +37,4 @@ def test_prompt_contains_only_run_json_and_rules():
 def test_request_is_low_temperature_and_bounded():
     c = FakeClient("ok 0.91")
     explain_run(RUN, c, "anthropic/some-model")
-    assert c.last_kwargs["temperature"] <= 0.2 and c.last_kwargs["max_tokens"] <= 300
+    assert c.last_kwargs["temperature"] <= 0.2 and c.last_kwargs["max_tokens"] <= 1024
