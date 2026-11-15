@@ -59,3 +59,18 @@ Change log (planner-slope section)
 - Registered 2026-11-15, before running scripts/planner_slope_variant.py.
 - Run 2026-11-15, after the registration commit. All 9 rows for both models are in reports/planner_slope_variant.md. What was found, stated without choosing rows: (1) the registered model's Brier (0.0157) is worse than the no-skill value (0.0020); (2) grid200 equals the no-skill Brier and has about 100 % coverage, but only 0.2 % of 20 m truth cells reach the 20 deg cutoff, so this window cannot separate good from poor planners; (3) the 95th percentile slope is 4.4 deg at 200 m and 10.3 deg at 20 m (scale effect). These are consistent with a planner that cannot see steep terrain; they do not show it is safe. The next registration should name windows with steeper terrain before they are analysed.
 - Added to API output (additive): stats.false_reach and stats.brier_baseline. Registered numbers were checked identical in 9 of 9 combinations before and after.
+
+## Steep-window validation (registered 2026-11-15 BEFORE any steep window was built or analysed)
+
+Why: the Jezero window used so far has 0.2 % of 20 m cells at or above the 20 deg cutoff, so it cannot separate a good planner from a poor one (see the planner-slope section). This registers how steeper windows are chosen, before any of them is looked at.
+
+Selection rule (fixed here, not tuned afterwards): scripts/find_steep_windows.py on the 1 m HiRISE Jezero DTM, with its defaults. Slope is taken on the 20 m block-mean grid (the truth grid), cutoff 20 deg, windows of 100 x 100 cells (2 km) stepped by 25 cells (500 m), no nodata, habitat cell (the window center) below the cutoff, share of cells at or above the cutoff between 2 % and 60 %, windows may not overlap, top 3 by share (mean slope breaks ties). The 60 % ceiling is there because a window where almost nothing is reachable is as uninformative as one where everything is.
+
+Analysis on each selected window: the same 9 roughness x confidence combinations, habitat (50, 50), budget 900 s, speed 0.5 m/s (assumed), cutoff 20 deg (assumed), for both the registered model (staircase) and grid200. Report coverage with its Wilson interval, false reach, Brier score and the no-skill Brier of that window.
+
+Claims rules: all 3 windows and all 9 rows per model are reported. No window is dropped or replaced after its result is seen; if the script returns fewer than 3 windows, report that number. If a window fails to build (nodata), say so.
+
+Limits stated in advance: the windows are selected using the truth slope, so these results describe terrain chosen to be informative, not a random sample of Jezero or of any other terrain. The DTM is one site. Speed, cutoff and roughness remain assumptions.
+
+Change log (steep-window section)
+- Registered 2026-11-15, before scripts/find_steep_windows.py was run on the real DTM. It was tested only on a synthetic GeoTIFF.
