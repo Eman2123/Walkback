@@ -2,7 +2,7 @@
 
 For a habitat and an EVA time budget, show the area from which a crew can still walk home, and how confident that result is. The walkback region is predicted from a coarse DEM and validated against a 1 m HiRISE DTM of Jezero crater, degraded to the same coarse scale.
 
-Status: working prototype. The API computes runs on a real Jezero tile, stores them (share links), and an optional AIML explainer summarises a run. The frontend shows the map, results, reliability chart and assumptions. Nothing here is flight software.
+Status: working prototype. The API computes runs on a real Jezero tile, stores them (share links), and an optional AIML explainer summarises a run. The frontend shows the map (a shaded-relief basemap the API renders from the same tile, GET /api/tiles/{id}/relief.png), results, reliability chart and assumptions. Nothing here is flight software.
 
 ## Result and honesty
 
@@ -72,12 +72,12 @@ src/walkback/        Python package
   export_io/         GeoJSON and CSV export
 migrations/          Alembic (DATABASE_URL from environment)
 contracts/           JSON schema shared with the frontend
-scripts/             command-line entry points (planned)
+scripts/             command-line entry points (terrain build, validation, steep-window finder)
 tests/               pytest
 web/                 Vite + React + Tailwind frontend
 docs/                data sources, methods, architecture, ADRs
 reports/             generated validation report and figures
-data/                raw and processed data (not committed)
+data/                raw data (not committed); the built tile data/processed/jezero-20m.npz is committed for deployment
 .10x/                team state: decisions, status, handoff
 .github/workflows/   CI
 ```

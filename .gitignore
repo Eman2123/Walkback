@@ -12,3 +12,9 @@ reports/figures/*.png
 web/dist/
 web/node_modules/
 !data/processed/jezero-20m.npz
+
+# Local debugging files
+body.json
+result.json
+run.json
+.vscode/
