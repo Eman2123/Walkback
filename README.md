@@ -27,12 +27,19 @@
   <a href="#limitations">Limitations</a>
 </p>
 
+<p align="center">
+  <b>Live demo:</b> <a href="https://walkback-rlvz.vercel.app">walkback-rlvz.vercel.app</a> &middot;
+  <b>API health:</b> <a href="https://walkback-eta.vercel.app/api/health">walkback-eta.vercel.app/api/health</a> &middot;
+  <b>Code:</b> <a href="https://github.com/Eman2123/Walkback">github.com/Eman2123/Walkback</a>
+</p>
+
 ---
 
 > **Not flight software.** This is a planning aid built for the NASA Space Apps Challenge 2026. Every speed, slope cutoff and roughness value is an assumption and is labelled as one. No route is declared safe.
 
 ## Contents
 
+0. [Demo links and latest changes](#demo-links-and-latest-changes)
 1. [The question](#the-question)
 2. [Screenshot](#screenshot)
 3. [Headline result: a shortfall, reported as one](#headline-result-a-shortfall-reported-as-one)
@@ -49,6 +56,28 @@
 14. [Repository layout](#repository-layout)
 15. [Limitations](#limitations)
 16. [Team, license and credits](#team-license-and-credits)
+
+## Demo links and latest changes
+
+| What | Link |
+|---|---|
+| Live app (frontend, Vercel) | https://walkback-rlvz.vercel.app |
+| API (FastAPI, Vercel), health check | https://walkback-eta.vercel.app/api/health |
+| Source code | https://github.com/Eman2123/Walkback |
+| 30-second video script | [docs/video-script.md](docs/video-script.md) |
+
+If the API is asleep or unreachable, the app falls back to a recorded demo that says it is synthetic. The first request after a pause can take a few seconds.
+
+**Latest changes (main, 2026-11-15)**
+
+- **Route feasibility** (PR #5): the planner's own route is walked on the 1 m truth. 88.8 % of the 987 calibrated cells have a route that gets home in time (Jezero, v2, roughness 0.5, confidence 0.9). Registered in [PREREGISTRATION.md](PREREGISTRATION.md) before it was run. Report: [reports/route_feasibility.md](reports/route_feasibility.md).
+- **Route check card** in the app, reading `web/public/route-feasibility.json`. A fixed report, not recomputed from the sliders.
+- **Assumptions panel fix**: long assumptions (start cell, return direction, what is not modelled) now wrap in full-width cards instead of overflowing.
+- **Vercel build fix**: a merge had dropped `loadRouteFeasibility` from `web/src/lib/api.js`, which broke one preview build. Fixed in the same PR.
+- **API reliability** (PR #4): the client tries the same origin first and retries, which fixed intermittent "API: UNREACHABLE".
+- **Model profile v2** (PR #3, the default): habitat cell stays passable and the result is the time to the habitat. Coverage 86.9 %, still below the 95 % target, so it is reported as a shortfall.
+
+The headline stays a shortfall. Nothing in these changes turns it into a pass.
 
 ## The question
 
