@@ -9,6 +9,10 @@ const INFO = {
   time_budget_s: { title: "Time budget", unit: "s" },
   confidence_threshold: { title: "Confidence threshold", unit: "" },
   grid_cell_m: { title: "Grid cell size", unit: "m" },
+  start_cell: { title: "Start cell", unit: "" },
+  return_direction: { title: "Return direction", unit: "" },
+  mobility_not_modelled: { title: "Not modelled", unit: "" },
+  directional_speed: { title: "Directional speed", unit: "" },
 };
 
 const BORDER = {
@@ -17,6 +21,9 @@ const BORDER = {
   measured: "border-l-neon",
 };
 const ORDER = ["assumed", "derived", "measured"];
+
+// A value this long is a sentence, not a number: it gets a full-width card with wrapped text.
+const isLong = (v) => String(v ?? "").length > 14;
 
 const pretty = (name) => name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
@@ -41,12 +48,25 @@ export default function AssumptionsPanel({ assumptions }) {
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {sorted.map((a) => {
           const info = INFO[a.name];
+          const border = BORDER[a.label] ?? "border-l-edge";
+          if (isLong(a.value)) {
+            return (
+              <li key={a.name} className={`px-inset col-span-full min-w-0 !border-l-8 px-3 py-2 ${border}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm text-cream">{info?.title ?? pretty(a.name)}</div>
+                    <div className="truncate text-xs text-mute">{a.name}</div>
+                  </div>
+                  <span className={`px-chip ${LABEL_CLASS[a.label] ?? "bg-edge"}`}>{a.label}</span>
+                </div>
+                <p className="mt-2 break-words text-sm leading-snug text-sun">{a.value}</p>
+              </li>
+            );
+          }
           return (
             <li
               key={a.name}
-              className={`px-inset flex items-center justify-between gap-3 !border-l-8 px-3 py-2 ${
-                BORDER[a.label] ?? "border-l-edge"
-              }`}
+              className={`px-inset flex items-center justify-between gap-3 !border-l-8 px-3 py-2 ${border}`}
             >
               <div className="min-w-0">
                 <div className="truncate text-sm text-cream">{info?.title ?? pretty(a.name)}</div>
