@@ -4,8 +4,8 @@ from walkback.explain import FALLBACK, build_messages, explain_run
 RUN = {"coverage": 0.91, "area_km2": {"deterministic": 0.41, "calibrated": 0.39}, "budget_s": 900}
 
 class FakeClient:
-    def __init__(self, text=None, raise_exc=False):
-        self.text, self.raise_exc = text, raise_exc
+    def __init__(self, text=None, raise_exc=False, finish_reason="stop"):
+        self.text, self.raise_exc, self.finish_reason = text, raise_exc, finish_reason
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
         self.last_kwargs = None
     def _create(self, **kwargs):
@@ -13,7 +13,7 @@ class FakeClient:
         if self.raise_exc:
             raise RuntimeError("gateway down")
         msg = SimpleNamespace(content=self.text)
-        return SimpleNamespace(choices=[SimpleNamespace(message=msg)])
+        return SimpleNamespace(choices=[SimpleNamespace(message=msg, finish_reason=self.finish_reason)])
 
 def test_returns_model_text_when_numbers_come_from_json():
     c = FakeClient("The calibrated region is 0.39 km2 and covers 0.91 of the truth, consistent with the run.")
@@ -37,4 +37,13 @@ def test_prompt_contains_only_run_json_and_rules():
 def test_request_is_low_temperature_and_bounded():
     c = FakeClient("ok 0.91")
     explain_run(RUN, c, "anthropic/some-model")
-    assert c.last_kwargs["temperature"] <= 0.2 and c.last_kwargs["max_tokens"] <= 1024
+    assert c.last_kwargs["temperature"] <= 0.2 and c.last_kwargs["max_tokens"] <= 2048
+
+
+def test_truncated_answer_is_cut_to_last_full_sentence():
+    c = FakeClient("The budget is 900 s. The coverage was 0.91 and the", finish_reason="length")
+    assert explain_run(RUN, c, "m") == "The budget is 900 s."
+
+def test_truncated_answer_with_no_full_sentence_falls_back():
+    c = FakeClient("The budget is 900", finish_reason="length")
+    assert explain_run(RUN, c, "m") == FALLBACK
