@@ -65,7 +65,7 @@ Walkback answers two things:
   <img src="docs/assets/screenshot.png" alt="Walkback app on the Jezero tile: shaded-relief map with the deterministic region in blue and the 1 m truth outline in yellow, sliders on the right" width="92%">
 </p>
 
-<sub>Real Jezero tile, default setting. The blue region is the deterministic walkback area; the dashed yellow outline is the 1 m truth. The calibrated (green) region is empty at this setting, which is the registered shortfall described below. The blocky relief is the 200 m planner terrain, not an image of Mars.</sub>
+<sub>Real Jezero tile, default setting. The blue region is the deterministic walkback area; the dashed yellow outline is the 1 m truth. The screenshot shows the registered v1 setting, where the calibrated (green) region is empty (the registered shortfall described below); the app now opens in profile v2. The blocky relief is the 200 m planner terrain, not an image of Mars.</sub>
 
 **Sound (optional).** The header has a *Sound* switch, **off by default**. When on, the app plays short 8-bit beeps generated in the browser (no audio files): clicks, slider ticks, a descending tone when a result misses the 95 % target (so a shortfall never sounds like a win), and a buzz on errors. The *Listen* button under the explanation reads it aloud with the browser's built-in voice (English only; voices differ by browser). Turning sound on also reads each new explanation aloud. The setting is remembered per browser.
 
@@ -87,7 +87,18 @@ The default setting was registered before the result was known. It **does not me
 | **Coverage of the truth** | **0.0 %** (95 % CI 0.0 % to 0.4 %) | derived |
 | Brier score | 0.0157 | derived |
 
-**Why the calibrated region is empty.** A post-hoc diagnostic ([reports/start_cell_diagnostic.md](reports/start_cell_diagnostic.md)) shows that the habitat's own cell is perturbed and blocked in 12.5 % of the 16 realizations, so no cell can reach a 0.9 reach probability. With the start cell kept passable the same setting gives 86.9 % coverage, which is still a shortfall. We report both numbers, labelled, and we do not pick the best setting as the headline.
+**Registered result (profile v1) and the default of the app (profile v2).** The table above is the registered model, kept as it was registered. The app and the API now run **profile v2**: the same model with the habitat cell kept passable in every realization (the crew starts inside it) and the result stated as the time *to* the habitat. Registered before it was implemented, see [PREREGISTRATION.md](PREREGISTRATION.md). On the same setting:
+
+| Default setting, Jezero tile | v1 (registered) | v2 (app default) |
+|---|---|---|
+| Calibrated area | 0.000 km² | 0.395 km² |
+| Coverage of the truth (95 % CI) | 0.0 % (0.0 % to 0.4 %) | 86.9 % (84.7 % to 88.8 %) |
+| False reach | not defined (empty region) | 7.3 % |
+| Brier score, no-skill Brier | 0.0157, 0.0020 | 0.0157, 0.0020 |
+
+v2 is **still a shortfall** and does not touch the Brier problem below. It removes a modelling flaw (a crew that starts at the habitat was not allowed to "reach" it), not the terrain problem. The v2 numbers on this window were known from the post-hoc diagnostic before v2 was written, so they are not a prediction, and v2 has not been tested on the steep windows.
+
+**Why the registered calibrated region is empty.** A post-hoc diagnostic ([reports/start_cell_diagnostic.md](reports/start_cell_diagnostic.md)) shows that the habitat's own cell is perturbed and blocked in 12.5 % of the 16 realizations, so no cell can reach a 0.9 reach probability. With the start cell kept passable the same setting gives 86.9 % coverage, which is still a shortfall. We report both numbers, labelled, and we do not pick the best setting as the headline.
 
 **Why the Brier score looks worse than it is, and what we did about it.** The planner terrain is a staircase of 100 constant 200 m blocks, so slope on the 20 m grid is exactly 0 inside a block and large only on block edges. Only 0.2 % of the 20 m truth cells reach the 20 degree cutoff in this window, so a forecast that always says "never steep" scores 0.0020, better than the registered model's 0.0157. A variant that computes slope on the 200 m block grid (`grid200`) reaches that no-skill level, but this first window cannot tell a good planner from a poor one. That is why we looked at steeper windows (below). Details: [reports/planner_slope_variant.md](reports/planner_slope_variant.md).
 
@@ -234,7 +245,7 @@ Base path `/api`. All bodies are JSON.
 | Method and path | Purpose | Notes |
 |---|---|---|
 | `GET /api/health` | Liveness check | Returns `{"status":"ok","version":...}` |
-| `POST /api/runs` | Compute (or fetch from cache) a run | Rate limited. `422` if the habitat cell is impassable at coarse or fine resolution |
+| `POST /api/runs` | Compute (or fetch from cache) a run | Rate limited. `422` if the habitat cell is impassable at coarse or fine resolution. Runs profile v2; the response has `variant.profile = "v2"` |
 | `GET /api/runs/{run_id}` | Fetch a stored run (share link) | `404` if unknown. A restart clears an in-memory store |
 | `POST /api/runs/{run_id}/explain` | Plain-language summary of a stored run | `503` if the explainer is not configured. Returns fixed fallback text if the check fails |
 | `GET /api/tiles/{tile_id}/relief.png` | Shaded-relief basemap of the tile | Cached for an hour. `404` for unknown tiles |
@@ -379,7 +390,7 @@ Wording rules, which apply to code, UI and docs:
 src/walkback/          Python package
   api.py               FastAPI app, validation, rate limit, endpoints
   params.py            parameter rounding and the cache key
-  compute.py           speed model, Dijkstra, ensemble calibration, solver and direction options
+  compute.py           speed model, Dijkstra, ensemble calibration, solver and direction options, compute_run_v2
   calibrate.py         reliability bins, Brier score, coverage
   relief.py            shaded-relief PNG for the map basemap
   explain.py           explainer with the numeric guard
@@ -409,7 +420,7 @@ What they do **not** support:
 - "The model is fine for steep terrain." It is not, here.
 - Any statement about other parts of Mars. There are six steep windows plus the first one, one terrain model, and the steep windows were chosen by steepness.
 - Any use of a walkback region as a safety margin. In the steep-P `grid200` rows whose lower end reaches 95 %, estimated false reach is 25 % to 45 %.
-- The speed model (Minetti variants, neighbour count) is an assumption. Results move by up to a factor of 3 in area depending on it.
+- The speed model (Minetti variants, neighbour count) is an assumption. Results move by up to a factor of 3 in area depending on it. What the walking model leaves out (Mars gravity, suit and load, surface, sub-cell obstacles) and why the validation cannot detect a wrong speed model: [docs/mobility-assumptions.md](docs/mobility-assumptions.md).
 
 Other limits:
 
