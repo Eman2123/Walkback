@@ -1,5 +1,9 @@
 // Owner: Urooj. Plain-language explanation from the API. Shows the fallback text when the explainer is unavailable.
+import { sfx, speak, speechSupported, stopSpeaking } from "../lib/sound.js";
+import { useSpeaking } from "../lib/useSound.js";
+
 export default function ExplainPanel({ onExplain, text, loading, disabled }) {
+  const speaking = useSpeaking();
   return (
     <div className="space-y-3">
       <div>
@@ -18,6 +22,21 @@ export default function ExplainPanel({ onExplain, text, loading, disabled }) {
         <div role="status" className="px-inset p-3">
           <p className="mb-2 font-pixel text-[8px] uppercase text-mute">Explanation</p>
           <p className="text-base leading-snug text-cream">{text}</p>
+          {speechSupported && (
+            <button
+              type="button"
+              data-silent
+              aria-pressed={speaking}
+              onClick={() => {
+                if (speaking) return stopSpeaking();
+                sfx("speak"); // plays only when sound effects are on
+                speak(text);
+              }}
+              className="px-btn px-btn-ghost mt-3"
+            >
+              {speaking ? "Stop" : "Listen"}
+            </button>
+          )}
         </div>
       )}
     </div>

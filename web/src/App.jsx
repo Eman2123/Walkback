@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import SoundToggle from "./components/SoundToggle.jsx";
+import { sfx, speak, stopSpeaking, tick } from "./lib/sound.js";
+import { useSoundOn } from "./lib/useSound.js";
 import { explainRun, getHealth, getRun, loadBasemapMeta, postRun } from "./lib/api.js";
 import { cellLatLon, fmtLatLon } from "./lib/format.js";
 import {
@@ -58,6 +61,39 @@ export default function App() {
   const [basemapMeta, setBasemapMeta] = useState(null);
   const timer = useRef(null);
   const touched = useRef(false);
+  const soundOn = useSoundOn();
+
+  // Sound effects for every pixel button and slider, in one place. All calls do nothing while sound is off.
+  useEffect(() => {
+    const onClick = (e) => {
+      if (e.target.closest?.(".px-btn:not([data-silent]), .px-toggle:not([data-silent])")) sfx("click");
+    };
+    const onInput = (e) => {
+      const el = e.target;
+      if (el.classList?.contains("wb-range")) tick((el.value - el.min) / (el.max - el.min));
+    };
+    document.addEventListener("click", onClick);
+    document.addEventListener("input", onInput);
+    return () => {
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("input", onInput);
+    };
+  }, []);
+
+  // A new result gets a sound. A result that misses the 95 % target must not sound like a win.
+  useEffect(() => {
+    if (!run?.stats) return;
+    sfx(run.stats.coverage != null && run.stats.coverage < 0.95 ? "shortfall" : "done");
+  }, [run?.run_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (error) sfx("error");
+  }, [error]);
+
+  // Stop reading when the inputs change (the text no longer matches the screen).
+  useEffect(() => {
+    if (!explanation) stopSpeaking();
+  }, [explanation]);
 
   useEffect(() => {
     loadBasemapMeta(TILE_ID).then(setBasemapMeta);
@@ -106,6 +142,7 @@ export default function App() {
 
   function placeHabitat(row, col) {
     touched.current = true;
+    sfx("place");
     setParams((p) => ({ ...p, habitat_row: row, habitat_col: col }));
   }
 
@@ -122,6 +159,7 @@ export default function App() {
     try {
       const { text } = await explainRun(run.run_id);
       setExplanation(text);
+      if (soundOn) speak(text); // read aloud automatically only when the visitor turned sound on
     } catch (e) {
       setExplanation(
         `The explanation is not available right now (${e.message}). The numbers above are still correct.`
@@ -162,9 +200,12 @@ export default function App() {
               </p>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+          <SoundToggle />
           <div className="px-inset flex items-center gap-3 px-3 py-2 font-pixel text-[9px] uppercase text-cream">
             <span className={`inline-block h-3 w-3 ${dot} ${api === "ok" ? "" : "px-blink"}`} />
             API: {api}
+          </div>
           </div>
         </div>
       </header>
