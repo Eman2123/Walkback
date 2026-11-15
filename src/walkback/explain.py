@@ -48,27 +48,30 @@ def build_messages(run: dict) -> list[dict]:
     ]
 
 
+def _trim_to_sentence(text: str) -> str:
+    """Cut a truncated answer back to its last complete sentence ('' if none)."""
+    end = max(text.rfind(". "), text.rfind("? "), text.rfind("! "))
+    if text.endswith((".", "?", "!")):
+        return text
+    return text[: end + 1].strip() if end != -1 else ""
+
+
 def explain_run(run: dict, client: Any, model: str) -> str:
     """Return a plain-language explanation, or FALLBACK if anything is wrong."""
-    debug = __import__("os").environ.get("WALKBACK_EXPLAIN_DEBUG") == "1"
     try:
         resp = client.chat.completions.create(
             model=model,
             messages=build_messages(run),
             temperature=0.2,
-            max_tokens=1024,
+            max_tokens=2048,
         )
-        text = (resp.choices[0].message.content or "").strip()
-        if debug:
-            print("EXPLAIN RESP:", resp.model_dump_json()[:1500])
-    except Exception as exc:
-        if debug:
-            print("EXPLAIN EXCEPTION:", type(exc).__name__, str(exc)[:500])
+        choice = resp.choices[0]
+        text = (choice.message.content or "").strip()
+        if getattr(choice, "finish_reason", None) == "length":
+            text = _trim_to_sentence(text)
+    except Exception:
         return FALLBACK
 
-    if debug:
-        print("EXPLAIN RAW TEXT:", repr(text))
-        print("EXPLAIN ALLOWED:", _all_numbers_allowed(text, _numbers_in(run)) if text else "n/a (empty)")
     if not text or not _all_numbers_allowed(text, _numbers_in(run)):
         return FALLBACK
     return text
